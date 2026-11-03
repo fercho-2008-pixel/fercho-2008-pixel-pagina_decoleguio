@@ -1,0 +1,290 @@
+{
+  "entities": {
+    "Profesor": {
+      "title": "Profesor",
+      "description": "Docente registrado en la plataforma escolar",
+      "type": "object",
+      "properties": {
+        "cedula": {
+          "type": "string",
+          "maxLength": 30,
+          "pattern": "^[0-9]+$",
+          "description": "Cédula o número de documento del profesor"
+        },
+        "nombre": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Nombre completo del profesor"
+        },
+        "telefono": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Número de celular o teléfono"
+        },
+        "materia": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Materia o asignatura principal"
+        },
+        "passwordHash": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Hash de seguridad del PIN"
+        },
+        "fecha": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Fecha de registro ISO"
+        }
+      },
+      "required": ["cedula", "nombre", "passwordHash"]
+    },
+    "Estudiante": {
+      "title": "Estudiante",
+      "description": "Estudiante matriculado en el colegio",
+      "type": "object",
+      "properties": {
+        "documento": {
+          "type": "string",
+          "maxLength": 30,
+          "pattern": "^[0-9]+$",
+          "description": "Número de documento del estudiante"
+        },
+        "nombre": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Nombre completo del estudiante"
+        },
+        "curso": {
+          "type": "string",
+          "enum": ["1", "2", "3", "4", "5"],
+          "description": "Grado escolar (1 a 5 de primaria)"
+        },
+        "passwordHash": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Hash de seguridad del PIN"
+        },
+        "fecha": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Fecha de registro ISO"
+        }
+      },
+      "required": ["documento", "nombre", "curso", "passwordHash"]
+    },
+    "Coordinador": {
+      "title": "Coordinador",
+      "description": "Usuario administrativo de coordinación escolar",
+      "type": "object",
+      "properties": {
+        "cedula": {
+          "type": "string",
+          "maxLength": 30,
+          "pattern": "^[0-9]+$",
+          "description": "Número de cédula del coordinador"
+        },
+        "nombres": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Nombres del coordinador"
+        },
+        "apellidos": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Apellidos del coordinador"
+        },
+        "nombre": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Nombres y apellidos completos"
+        },
+        "telefono": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Número de teléfono de contacto"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 120,
+          "description": "Correo electrónico del coordinador"
+        },
+        "institucion": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Institución Educativa de Colombia a la que pertenece"
+        },
+        "passwordHash": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Hash de seguridad de la contraseña"
+        },
+        "salt": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Sal criptográfica para derivación segura"
+        },
+        "fecha": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Fecha de registro ISO"
+        }
+      },
+      "required": ["cedula", "nombres", "apellidos", "telefono", "email", "institucion", "passwordHash"]
+    },
+    "Trabajo": {
+      "title": "Trabajo",
+      "description": "Guía pedagógica o trabajo asignado por un profesor",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Identificador único del trabajo"
+        },
+        "grado": {
+          "type": "number",
+          "description": "Grado escolar (1 a 5)"
+        },
+        "titulo": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Título de la guía o trabajo"
+        },
+        "fecha": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Fecha de publicación"
+        },
+        "editado": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Fecha de última edición"
+        },
+        "profesorNombre": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Nombre del profesor autor"
+        },
+        "profesorCedula": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Cédula del profesor autor"
+        },
+        "profesorTelefono": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Teléfono de contacto del profesor"
+        },
+        "guiaHtml": {
+          "type": "string",
+          "description": "Contenido HTML del documento de la guía"
+        },
+        "guiaNombre": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Nombre original del archivo de la guía"
+        },
+        "preguntasHtml": {
+          "type": "string",
+          "description": "Contenido HTML con formulario interactivo de preguntas"
+        },
+        "preguntasNombre": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Nombre original del archivo de preguntas"
+        }
+      },
+      "required": ["id", "grado", "titulo", "profesorNombre"]
+    },
+    "Entrega": {
+      "title": "Entrega",
+      "description": "Envío de respuestas de un estudiante y su calificación asignada",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Identificador único compuesto (trabajoId:estudianteDoc)"
+        },
+        "trabajoId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "ID del trabajo asignado"
+        },
+        "grado": {
+          "type": "number",
+          "description": "Grado del trabajo"
+        },
+        "trabajoTitulo": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Título del trabajo entregado"
+        },
+        "profesorNombre": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Nombre del profesor"
+        },
+        "estudianteDoc": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Número de documento del estudiante"
+        },
+        "estudianteNombre": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Nombre del estudiante"
+        },
+        "estudianteCurso": {
+          "type": "string",
+          "maxLength": 10,
+          "description": "Curso o grado del estudiante"
+        },
+        "fecha": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Fecha y hora de envío de la entrega"
+        },
+        "nota": {
+          "type": "number",
+          "description": "Calificación numérica asignada (1 a 5)"
+        },
+        "fechaCalificacion": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Fecha en que se calificó"
+        },
+        "retroalimentacion": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Comentario o retroalimentación del profesor"
+        }
+      },
+      "required": ["id", "trabajoId", "estudianteDoc", "estudianteNombre"]
+    }
+  },
+  "firestore": {
+    "/profesores/{profesorId}": {
+      "schema": "Profesor",
+      "description": "Directorio de profesores registrados"
+    },
+    "/estudiantes/{estudianteId}": {
+      "schema": "Estudiante",
+      "description": "Directorio de estudiantes matriculados"
+    },
+    "/coordinadores/{coordinadorId}": {
+      "schema": "Coordinador",
+      "description": "Usuarios coordinadores del colegio e institución educativa"
+    },
+    "/trabajos/{trabajoId}": {
+      "schema": "Trabajo",
+      "description": "Trabajos y guías escolares por grado"
+    },
+    "/entregas/{entregaId}": {
+      "schema": "Entrega",
+      "description": "Entregas de los estudiantes y calificaciones de los profesores"
+    }
+  }
+}

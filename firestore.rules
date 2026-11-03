@@ -1,0 +1,125 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Helper: Validar datos de profesor
+    function isValidProfesor(data) {
+      return data.cedula is string && data.cedula.size() > 0 && data.cedula.size() <= 30 &&
+             data.nombre is string && data.nombre.size() > 0 && data.nombre.size() <= 120 &&
+             data.passwordHash is string && data.passwordHash.size() <= 128 &&
+             (!('telefono' in data) || (data.telefono is string && data.telefono.size() <= 30)) &&
+             (!('materia' in data) || (data.materia is string && data.materia.size() <= 80)) &&
+             (!('fecha' in data) || (data.fecha is string && data.fecha.size() <= 50));
+    }
+
+    // Helper: Validar datos de estudiante
+    function isValidEstudiante(data) {
+      return data.documento is string && data.documento.size() > 0 && data.documento.size() <= 30 &&
+             data.nombre is string && data.nombre.size() > 0 && data.nombre.size() <= 120 &&
+             data.curso is string && (data.curso == '1' || data.curso == '2' || data.curso == '3' || data.curso == '4' || data.curso == '5') &&
+             data.passwordHash is string && data.passwordHash.size() <= 128 &&
+             (!('fecha' in data) || (data.fecha is string && data.fecha.size() <= 50));
+    }
+
+    // Helper: Validar datos de coordinador
+    function isValidCoordinador(data) {
+      return data.cedula is string && data.cedula.size() > 0 && data.cedula.size() <= 30 &&
+             data.nombres is string && data.nombres.size() > 0 && data.nombres.size() <= 100 &&
+             data.apellidos is string && data.apellidos.size() > 0 && data.apellidos.size() <= 100 &&
+             data.telefono is string && data.telefono.size() > 0 && data.telefono.size() <= 30 &&
+             data.email is string && data.email.size() > 0 && data.email.size() <= 120 &&
+             data.institucion is string && data.institucion.size() > 0 && data.institucion.size() <= 200 &&
+             data.passwordHash is string && data.passwordHash.size() <= 128 &&
+             (!('nombre' in data) || (data.nombre is string && data.nombre.size() <= 200)) &&
+             (!('salt' in data) || (data.salt is string && data.salt.size() <= 64)) &&
+             (!('fecha' in data) || (data.fecha is string && data.fecha.size() <= 50));
+    }
+
+    // Helper: Validar trabajo / guía
+    function isValidTrabajo(data) {
+      return data.id is string && data.id.size() > 0 && data.id.size() <= 128 &&
+             data.grado is number && data.grado >= 1 && data.grado <= 5 &&
+             data.titulo is string && data.titulo.size() > 0 && data.titulo.size() <= 200 &&
+             data.profesorNombre is string && data.profesorNombre.size() > 0 && data.profesorNombre.size() <= 120 &&
+             (!('profesorCedula' in data) || (data.profesorCedula is string && data.profesorCedula.size() <= 30)) &&
+             (!('profesorTelefono' in data) || (data.profesorTelefono is string && data.profesorTelefono.size() <= 30)) &&
+             (!('guiaNombre' in data) || (data.guiaNombre is string && data.guiaNombre.size() <= 200)) &&
+             (!('preguntasNombre' in data) || (data.preguntasNombre is string && data.preguntasNombre.size() <= 200)) &&
+             (!('fecha' in data) || (data.fecha is string && data.fecha.size() <= 50)) &&
+             (!('editado' in data) || (data.editado is string && data.editado.size() <= 50));
+    }
+
+    // Helper: Validar entrega / calificación
+    function isValidEntrega(data) {
+      return data.id is string && data.id.size() > 0 && data.id.size() <= 200 &&
+             data.trabajoId is string && data.trabajoId.size() > 0 && data.trabajoId.size() <= 128 &&
+             data.estudianteDoc is string && data.estudianteDoc.size() > 0 && data.estudianteDoc.size() <= 30 &&
+             data.estudianteNombre is string && data.estudianteNombre.size() > 0 && data.estudianteNombre.size() <= 120 &&
+             (!('grado' in data) || (data.grado is number && data.grado >= 1 && data.grado <= 5)) &&
+             (!('trabajoTitulo' in data) || (data.trabajoTitulo is string && data.trabajoTitulo.size() <= 200)) &&
+             (!('profesorNombre' in data) || (data.profesorNombre is string && data.profesorNombre.size() <= 120)) &&
+             (!('estudianteCurso' in data) || (data.estudianteCurso is string && data.estudianteCurso.size() <= 10)) &&
+             (!('fecha' in data) || (data.fecha is string && data.fecha.size() <= 50)) &&
+             (!('nota' in data) || (data.nota == null || (data.nota is number && data.nota >= 1 && data.nota <= 5))) &&
+             (!('fechaCalificacion' in data) || (data.fechaCalificacion == null || (data.fechaCalificacion is string && data.fechaCalificacion.size() <= 50))) &&
+             (!('retroalimentacion' in data) || (data.retroalimentacion == null || (data.retroalimentacion is string && data.retroalimentacion.size() <= 1000)));
+    }
+
+    // Colección: profesores
+    match /profesores/{profesorId} {
+      allow read: if isValidId(profesorId);
+      allow create: if isValidId(profesorId) && isValidProfesor(incoming()) && incoming().cedula == profesorId;
+      allow update: if isValidId(profesorId) && isValidProfesor(incoming()) && incoming().cedula == existing().cedula;
+      allow delete: if isValidId(profesorId);
+    }
+
+    // Colección: estudiantes
+    match /estudiantes/{estudianteId} {
+      allow read: if isValidId(estudianteId);
+      allow create: if isValidId(estudianteId) && isValidEstudiante(incoming()) && incoming().documento == estudianteId;
+      allow update: if isValidId(estudianteId) && isValidEstudiante(incoming()) && incoming().documento == existing().documento;
+      allow delete: if isValidId(estudianteId);
+    }
+
+    // Colección: coordinadores
+    match /coordinadores/{coordinadorId} {
+      allow read: if isValidId(coordinadorId);
+      allow create: if isValidId(coordinadorId) && isValidCoordinador(incoming()) && incoming().cedula == coordinadorId;
+      allow update: if isValidId(coordinadorId) && isValidCoordinador(incoming()) && incoming().cedula == existing().cedula;
+      allow delete: if isValidId(coordinadorId);
+    }
+
+    // Colección: trabajos (guías y actividades pedagógicas)
+    match /trabajos/{trabajoId} {
+      allow read: if isValidId(trabajoId);
+      allow create: if isValidId(trabajoId) && isValidTrabajo(incoming()) && incoming().id == trabajoId;
+      allow update: if isValidId(trabajoId) && isValidTrabajo(incoming()) && incoming().id == existing().id;
+      allow delete: if isValidId(trabajoId);
+    }
+
+    // Colección: entregas (respuestas y calificaciones)
+    match /entregas/{entregaId} {
+      allow read: if isValidId(entregaId);
+      allow create: if isValidId(entregaId) && isValidEntrega(incoming()) && incoming().id == entregaId;
+      allow update: if isValidId(entregaId) && isValidEntrega(incoming()) && incoming().id == existing().id;
+      allow delete: if isValidId(entregaId);
+    }
+  }
+}

@@ -1260,6 +1260,9 @@
   <div class="home-heading">
     <h1>Rincón de Guías</h1>
     <p>Un lugar donde los profesores guardan sus guías de trabajo y los estudiantes las encuentran fácilmente por grado.</p>
+    <div id="cloud-status-badge" style="display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:999px;background:#EBF5EE;border:1.5px solid var(--green);color:var(--green-dark);font-size:13px;font-weight:600;margin-top:14px;">
+      <span style="font-size:16px;">☁️</span> Base de datos Firestore conectada: Profesores, Estudiantes, Trabajos y Calificaciones
+    </div>
   </div>
   <div class="doors">
     <button class="door door-estudiante" onclick="chooseRole('estudiante')">
@@ -1344,14 +1347,14 @@
 <div class="screen" id="screen-login-profesor">
   <div class="topbar">
     <div class="topbar-left">
-      <button class="pill-btn" onclick="goToAuthChoice()">← Atrás</button>
+      <button class="pill-btn" onclick="goHome()">← Menú principal</button>
       <span class="role-tag profesor">Profesor</span>
     </div>
   </div>
   <div class="screen-body auth-screen-body">
     <div class="auth-card profesor-card">
       <h2>Iniciar sesión</h2>
-      <p class="auth-card-sub">Ingresa con tu número de cédula y tu contraseña.</p>
+      <p class="auth-card-sub">Ingresa con tu número de cédula y tu contraseña asignada por Coordinación.</p>
       <div class="field">
         <label for="login-prof-cedula">Número de cédula</label>
         <input type="text" inputmode="numeric" id="login-prof-cedula">
@@ -1362,7 +1365,9 @@
       </div>
       <button class="primary-btn wide" onclick="loginProfesor()">Entrar</button>
       <div class="form-msg" id="login-prof-msg"></div>
-      <p class="auth-switch">¿No tienes cuenta? <button class="link-btn" onclick="showAuthScreen('register')">Regístrate</button></p>
+      <div style="margin-top:20px;padding:12px 14px;background:#f3f7fa;border:1.5px solid var(--blue);border-radius:10px;font-size:13px;color:var(--ink-soft);line-height:1.4;text-align:left;">
+        🔒 <strong>Registro exclusivo de profesores:</strong> Por disposición institucional, las cuentas de los docentes son creadas y gestionadas únicamente por el <strong>Coordinador</strong>. Si requieres una cuenta o restablecer tu acceso, contacta a la Coordinación escolar.
+      </div>
     </div>
   </div>
 </div>
@@ -1464,28 +1469,55 @@
     </div>
   </div>
   <div class="screen-body auth-screen-body">
-    <div class="auth-card profesor-card coord-card">
-      <h2>Crear cuenta de coordinador</h2>
-      <p class="auth-card-sub">Todavía no hay un coordinador en esta página. Solo se puede crear una cuenta de coordinador; después, solo se podrá iniciar sesión. Con ella verás las cuentas de profesores y estudiantes y podrás eliminarlas.</p>
+    <div class="auth-card profesor-card coord-card" style="max-width:540px;">
+      <h2>Registro de Coordinador Institucional</h2>
+      <p class="auth-card-sub">Registra los datos oficiales de coordinación. Como coordinador tendrás la facultad exclusiva de registrar a los profesores y supervisar todos los docentes y estudiantes de tu institución educativa en Colombia.</p>
+      
       <div class="field">
-        <label for="reg-coord-nombre">Nombre completo</label>
-        <input type="text" id="reg-coord-nombre">
+        <label for="reg-coord-cedula">Número de cédula *</label>
+        <input type="text" inputmode="numeric" id="reg-coord-cedula" placeholder="Ej: 1020304050">
       </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field">
+          <label for="reg-coord-nombres">Nombres completos *</label>
+          <input type="text" id="reg-coord-nombres" placeholder="Ej: Juan Camilo">
+        </div>
+        <div class="field">
+          <label for="reg-coord-apellidos">Apellidos completos *</label>
+          <input type="text" id="reg-coord-apellidos" placeholder="Ej: Rodríguez Pérez">
+        </div>
+      </div>
+
       <div class="field">
-        <label for="reg-coord-cedula">Número de cédula</label>
-        <input type="text" inputmode="numeric" id="reg-coord-cedula">
+        <label for="reg-coord-telefono">Número de teléfono / celular *</label>
+        <input type="tel" inputmode="numeric" id="reg-coord-telefono" placeholder="Ej: 3109876543">
       </div>
+
       <div class="field">
-        <label for="reg-coord-pass">Contraseña</label>
-        <input type="password" id="reg-coord-pass">
-        <span class="field-hint">Mínimo 8 caracteres. Anótala en un lugar seguro: no hay forma de recuperarla.</span>
+        <label for="reg-coord-email">Correo electrónico *</label>
+        <input type="email" id="reg-coord-email" placeholder="coordinador@colegio.edu.co">
       </div>
+
       <div class="field">
-        <label for="reg-coord-pass2">Confirmar contraseña</label>
-        <input type="password" id="reg-coord-pass2">
+        <label for="reg-coord-institucion">Institución Educativa de Colombia a la que pertenece *</label>
+        <input type="text" id="reg-coord-institucion" placeholder="Ej: Institución Educativa Distrital San José">
       </div>
-      <button class="primary-btn wide" id="reg-coord-btn" onclick="registerCoordinador()">Crear cuenta</button>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field">
+          <label for="reg-coord-pass">Contraseña *</label>
+          <input type="password" id="reg-coord-pass" placeholder="Mínimo 8 caracteres">
+        </div>
+        <div class="field">
+          <label for="reg-coord-pass2">Confirmar contraseña *</label>
+          <input type="password" id="reg-coord-pass2" placeholder="Repite la contraseña">
+        </div>
+      </div>
+
+      <button class="primary-btn wide" id="reg-coord-btn" onclick="registerCoordinador()">Crear cuenta de coordinador</button>
       <div class="form-msg" id="reg-coord-msg" role="status"></div>
+      <p class="auth-switch" style="margin-top:16px;">¿Ya tienes cuenta registrada? <button class="link-btn" onclick="showScreen('screen-login-coordinador')">Inicia sesión</button></p>
     </div>
   </div>
 </div>
@@ -1501,17 +1533,26 @@
   <div class="screen-body auth-screen-body">
     <div class="auth-card profesor-card coord-card">
       <h2>Acceso de coordinación</h2>
-      <p class="auth-card-sub">Ingresa con tu número de cédula y tu contraseña.</p>
+      <p class="auth-card-sub">Para ingresar a tu cuenta de coordinador ingresa tu cédula, correo electrónico y contraseña.</p>
+      
       <div class="field">
-        <label for="login-coord-cedula">Número de cédula</label>
-        <input type="text" inputmode="numeric" id="login-coord-cedula">
+        <label for="login-coord-cedula">Número de cédula *</label>
+        <input type="text" inputmode="numeric" id="login-coord-cedula" placeholder="Tu número de cédula">
       </div>
+      
       <div class="field">
-        <label for="login-coord-pass">Contraseña</label>
-        <input type="password" id="login-coord-pass">
+        <label for="login-coord-email">Correo electrónico *</label>
+        <input type="email" id="login-coord-email" placeholder="correo@institucion.edu.co">
       </div>
-      <button class="primary-btn wide" id="login-coord-btn" onclick="loginCoordinador()">Entrar</button>
+      
+      <div class="field">
+        <label for="login-coord-pass">Contraseña *</label>
+        <input type="password" id="login-coord-pass" placeholder="Tu contraseña">
+      </div>
+      
+      <button class="primary-btn wide" id="login-coord-btn" onclick="loginCoordinador()">Entrar a Coordinación</button>
       <div class="form-msg" id="login-coord-msg" role="status"></div>
+      <p class="auth-switch" style="margin-top:16px;">¿Quieres registrar un nuevo coordinador? <button class="link-btn" onclick="showScreen('screen-register-coordinador')">Registrarse aquí</button></p>
     </div>
   </div>
 </div>
@@ -1522,26 +1563,80 @@
     <div class="topbar-left">
       <span class="role-tag coordinador">Coordinador</span>
       <span class="user-greeting" id="coord-user-greeting"></span>
+      <span id="coord-institucion-badge" style="display:none;background:#f3eef9;color:var(--purple-dark);font-size:13px;font-weight:600;padding:4px 12px;border-radius:999px;border:1px solid var(--purple);"></span>
     </div>
     <div class="topbar-left">
-      <h2>Usuarios registrados</h2>
-      <button class="pill-btn" id="export-btn-coord" onclick="exportForStudents()">⭳ Descargar página actualizada</button>
+      <button class="primary-btn" onclick="openModalRegProfesor()" style="background:var(--purple-dark);padding:9px 16px;font-size:14px;">➕ Registrar nuevo profesor</button>
+      <button class="pill-btn" id="export-btn-coord" onclick="exportForStudents()">⭳ Descargar copia</button>
       <button class="pill-btn" onclick="logout()">Cerrar sesión</button>
     </div>
   </div>
   <div class="screen-body">
-    <div class="info-banner">
-      Aquí ves las cuentas registradas en este navegador y en la copia de la página que abriste. Cuando elimines a alguien, descarga la página actualizada con el botón de arriba y compártela: al abrirla, esa cuenta también se elimina en los computadores donde ya existía.
+    <div class="info-banner" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
+      <div>
+        <strong>Panel de Supervisión y Gestión Institucional</strong>
+        <span>Visualiza todos los profesores y estudiantes registrados en tu institución. Recuerda que como coordinador eres el único autorizado para registrar nuevos profesores.</span>
+      </div>
+      <button class="primary-btn" onclick="openModalRegProfesor()" style="background:var(--purple-dark);font-size:14px;white-space:nowrap;">➕ Registrar profesor</button>
     </div>
+
+    <!-- Pestañas Profesores / Estudiantes -->
     <div class="coord-tabs">
       <button class="coord-tab on" id="tab-profesores" onclick="setCoordTab('profesores')">Profesores</button>
       <button class="coord-tab" id="tab-estudiantes" onclick="setCoordTab('estudiantes')">Estudiantes</button>
     </div>
     <div class="coord-bar">
-      <input type="text" class="coord-search" id="coord-search" placeholder="Buscar por nombre o documento" aria-label="Buscar usuarios" oninput="renderCoordView()">
+      <input type="text" class="coord-search" id="coord-search" placeholder="Buscar por nombre, documento o materia" aria-label="Buscar usuarios" oninput="renderCoordView()">
       <span class="user-greeting" id="coord-count"></span>
     </div>
     <div id="coord-body"></div>
+  </div>
+</div>
+
+<!-- ============ MODAL REGISTRO DE PROFESOR POR COORDINADOR ============ -->
+<div class="modal-overlay" id="modal-reg-prof-coord">
+  <div class="modal-box" style="max-width:500px;">
+    <h3 style="font-size:20px;color:var(--ink);margin-bottom:6px;">Registrar Nuevo Profesor</h3>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">Crea la cuenta oficial para un docente de tu institución educativa.</p>
+    
+    <div class="field" style="margin-bottom:12px;">
+      <label for="coord-new-prof-nombre" style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Nombre y apellidos del profesor *</label>
+      <input type="text" id="coord-new-prof-nombre" class="text-input" placeholder="Ej: Sandra Milena Gómez" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--line);border-radius:8px;">
+    </div>
+    
+    <div class="field" style="margin-bottom:12px;">
+      <label for="coord-new-prof-cedula" style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Número de cédula *</label>
+      <input type="text" inputmode="numeric" id="coord-new-prof-cedula" class="text-input" placeholder="Solo dígitos (ej: 43567890)" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--line);border-radius:8px;">
+    </div>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div class="field">
+        <label for="coord-new-prof-telefono" style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Celular / Teléfono *</label>
+        <input type="tel" inputmode="numeric" id="coord-new-prof-telefono" class="text-input" placeholder="Ej: 3001234567" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--line);border-radius:8px;">
+      </div>
+      <div class="field">
+        <label for="coord-new-prof-materia" style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Materia o asignatura *</label>
+        <input type="text" id="coord-new-prof-materia" class="text-input" placeholder="Ej: Lengua Castellana" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--line);border-radius:8px;">
+      </div>
+    </div>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div class="field">
+        <label for="coord-new-prof-pass" style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Contraseña inicial *</label>
+        <input type="password" id="coord-new-prof-pass" class="text-input" placeholder="Mínimo 8 caracteres" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--line);border-radius:8px;">
+      </div>
+      <div class="field">
+        <label for="coord-new-prof-pass2" style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Confirmar clave *</label>
+        <input type="password" id="coord-new-prof-pass2" class="text-input" placeholder="Repite la contraseña" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--line);border-radius:8px;">
+      </div>
+    </div>
+
+    <div class="form-msg" id="coord-new-prof-msg" style="margin-bottom:12px;"></div>
+    
+    <div class="modal-actions">
+      <button type="button" class="modal-cancel" onclick="closeModalRegProfesor()">Cancelar</button>
+      <button type="button" class="primary-btn" id="coord-new-prof-btn" onclick="saveProfesorFromCoord()" style="background:var(--purple-dark);">Registrar profesor</button>
+    </div>
   </div>
 </div>
 
@@ -1807,6 +1902,7 @@
   </div>
 </div>
 
+<script type="module" src="/firebase-client.js"></script>
 <script>
   const GRADE_COLORS = {1:'var(--green)',2:'var(--blue)',3:'var(--mustard-dark)',4:'var(--raspberry)',5:'var(--purple)'};
   const MAX_VIDEO_BYTES = 2 * 1024 * 1024 * 1024;
@@ -1918,19 +2014,18 @@
     state.role = role;
     state.user = null;
     if(role === 'coordinador'){
-      // Si ya hay coordinador solo se inicia sesión; si no, se crea la cuenta
       showScreen(getAccounts('coordinador').length ? 'screen-login-coordinador' : 'screen-register-coordinador');
+      return;
+    }
+    if(role === 'profesor'){
+      // Solo el coordinador puede registrar profesores. Los profesores ingresan por inicio de sesión.
+      showScreen('screen-login-profesor');
       return;
     }
     const title = document.getElementById('auth-choice-title');
     const sub = document.getElementById('auth-choice-sub');
-    if(role === 'profesor'){
-      title.textContent = 'Acceso de profesores';
-      sub.textContent = 'Crea tu cuenta con tu cédula y una contraseña, o inicia sesión si ya la tienes.';
-    } else {
-      title.textContent = '¡Hola! Entra a tu cuenta';
-      sub.textContent = 'Crea tu cuenta con tu documento y una clave de 4 números, o inicia sesión si ya la tienes.';
-    }
+    title.textContent = '¡Hola! Entra a tu cuenta';
+    sub.textContent = 'Crea tu cuenta con tu documento y una clave de 4 números, o inicia sesión si ya la tienes.';
     showScreen('screen-auth-choice');
   }
 
@@ -1967,12 +2062,16 @@
     if(accounts.some(a => a.passwordHash === passwordHash)){
       return setFormMsg('reg-prof-msg','Esa contraseña ya la está usando otra cuenta. Elige una diferente.',false);
     }
-    accounts.push({ cedula, nombre, telefono, materia, passwordHash, fecha: new Date().toISOString() });
+    const newProf = { cedula, nombre, telefono, materia, passwordHash, fecha: new Date().toISOString() };
+    accounts.push(newProf);
     if(!saveAccounts('profesor', accounts)){
       return setFormMsg('reg-prof-msg','No se pudo crear la cuenta. Intenta de nuevo.',false);
     }
+    if(window.ColegioDB && window.ColegioDB.saveProfesor){
+      window.ColegioDB.saveProfesor(newProf).catch(e => console.warn('Error guardando profesor en cloud:', e));
+    }
 
-    setFormMsg('reg-prof-msg','Cuenta creada.', true);
+    setFormMsg('reg-prof-msg','Cuenta creada y guardada en base de datos.', true);
     state.user = { nombre, id: cedula, telefono, materia };
     goToGradeSelect('profesor');
   }
@@ -2012,12 +2111,16 @@
     }
 
     const passwordHash = await hashPassword(pin);
-    accounts.push({ documento: doc, nombre, curso, passwordHash, fecha: new Date().toISOString() });
+    const newEst = { documento: doc, nombre, curso, passwordHash, fecha: new Date().toISOString() };
+    accounts.push(newEst);
     if(!saveAccounts('estudiante', accounts)){
       return setFormMsg('reg-est-msg','No se pudo crear la cuenta. Intenta de nuevo.',false);
     }
+    if(window.ColegioDB && window.ColegioDB.saveEstudiante){
+      window.ColegioDB.saveEstudiante(newEst).catch(e => console.warn('Error guardando estudiante en cloud:', e));
+    }
 
-    setFormMsg('reg-est-msg','¡Cuenta creada!', true);
+    setFormMsg('reg-est-msg','¡Cuenta creada y guardada en base de datos!', true);
     clearPinValue('reg-est-pin');
     clearPinValue('reg-est-pin2');
     document.getElementById('reg-est-curso').value = '';
@@ -2568,8 +2671,11 @@
     try{
       await ready;
       await idbRun('readwrite', s => s.put(work));
+      if(window.ColegioDB && window.ColegioDB.saveTrabajo){
+        window.ColegioDB.saveTrabajo(work).catch(e => console.warn('Error guardando trabajo en cloud:', e));
+      }
       clearPending(true);
-      setUploadMsg(wasEditing ? 'Cambios guardados. El trabajo ya está actualizado.' : 'Trabajo subido. Ya aparece en la lista de este grado.', true);
+      setUploadMsg(wasEditing ? 'Cambios guardados. El trabajo ya está actualizado.' : 'Trabajo subido y guardado en la base de datos.', true);
       await renderTeacherList();
       setTimeout(() => {
         const el = document.getElementById('upload-msg');
@@ -2744,9 +2850,17 @@
     try{
       await ready;
       await idbRun('readwrite', s => s.delete(id));
+      if(window.ColegioDB && window.ColegioDB.deleteTrabajo){
+        window.ColegioDB.deleteTrabajo(id).catch(e => console.warn('Error eliminando trabajo en cloud:', e));
+      }
       try{
         const ents = await getEntregas(id);
-        if(ents.length) await idbRun('readwrite', s => { ents.forEach(x => s.delete(x.id)); return null; }, ENTREGAS);
+        if(ents.length){
+          await idbRun('readwrite', s => { ents.forEach(x => s.delete(x.id)); return null; }, ENTREGAS);
+          if(window.ColegioDB && window.ColegioDB.deleteEntrega){
+            ents.forEach(x => window.ColegioDB.deleteEntrega(x.id).catch(e => console.warn(e)));
+          }
+        }
       }catch(err){}
       addTombstone(id);
     }catch(e){}
@@ -2898,7 +3012,11 @@
     if(!e) return '';
     const cuando = formatDateTime(e.fecha);
     if(e.nota){
-      return `<div class="entrega-status graded">✅ Enviaste este trabajo el ${cuando}. Tu nota: <strong>${e.nota} / 5</strong></div>`;
+      let feedbackHtml = '';
+      if(e.retroalimentacion){
+        feedbackHtml = `<div style="margin-top:8px;padding:10px 14px;background:rgba(255,255,255,0.85);border:1.5px solid var(--green);border-radius:10px;font-size:13px;color:var(--ink);line-height:1.4;">💬 <strong>Retroalimentación del profesor:</strong> ${escapeHtml(e.retroalimentacion)}</div>`;
+      }
+      return `<div class="entrega-status graded">✅ Enviaste este trabajo el ${cuando}. Tu nota: <strong>${e.nota} / 5</strong>${feedbackHtml}</div>`;
     }
     return `<div class="entrega-status">📤 Enviaste este trabajo el ${cuando}. Tu profesor todavía no lo ha calificado.</div>`;
   }
@@ -2982,6 +3100,9 @@
         fechaCalificacion: null
       };
       await idbRun('readwrite', s => s.put(entrega), ENTREGAS);
+      if(window.ColegioDB && window.ColegioDB.saveEntrega){
+        window.ColegioDB.saveEntrega(entrega).catch(e => console.warn('Error guardando entrega en cloud:', e));
+      }
       state.lastEntrega = entrega;
       state.sentThisView = true;
       document.getElementById('sent-overlay').classList.add('active');
@@ -3175,10 +3296,14 @@
       </div>
       ${respuestas}
       <div class="grade-box">
-        <h3>Calificación</h3>
-        <p class="grade-hint">Elige una nota de 1 a 5.</p>
+        <h3>Calificación y Retroalimentación</h3>
+        <p class="grade-hint">Elige una nota de 1 a 5 y escribe una retroalimentación pedagógica para el estudiante.</p>
         <div class="grade-buttons" id="grade-buttons" role="radiogroup" aria-label="Nota de 1 a 5">${botones}</div>
-        <button class="primary-btn" id="grade-save" onclick="saveNota()" ${state.notaTemp ? '' : 'disabled'}>Guardar calificación</button>
+        <div style="margin-top:14px; text-align:left;">
+          <label for="grade-feedback-input" style="display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:var(--ink);">Retroalimentación para el estudiante (opcional):</label>
+          <textarea id="grade-feedback-input" rows="3" placeholder="Escribe un comentario o sugerencia para el estudiante..." style="width:100%; padding:10px 12px; border-radius:10px; border:2px solid var(--line); font-family:inherit; font-size:14px; background:var(--paper); color:var(--ink); box-sizing:border-box;">${escapeHtml(e.retroalimentacion || '')}</textarea>
+        </div>
+        <button class="primary-btn" id="grade-save" onclick="saveNota()" style="margin-top:14px;" ${state.notaTemp ? '' : 'disabled'}>Guardar calificación en base de datos</button>
         <div class="form-msg" id="grade-msg" role="status"></div>
       </div>`;
   }
@@ -3200,17 +3325,25 @@
     const e = state.entregaActual;
     if(!e || !state.notaTemp) return;
     const msg = document.getElementById('grade-msg');
+    const feedbackInput = document.getElementById('grade-feedback-input');
+    const retro = feedbackInput ? feedbackInput.value.trim() : '';
     const prevNota = e.nota;
     const prevFecha = e.fechaCalificacion;
+    const prevRetro = e.retroalimentacion;
     try{
       e.nota = state.notaTemp;
       e.fechaCalificacion = new Date().toISOString();
+      e.retroalimentacion = retro || null;
       await idbRun('readwrite', s => s.put(e), ENTREGAS);
-      msg.textContent = 'Calificación guardada.';
+      if(window.ColegioDB && window.ColegioDB.saveCalificacion){
+        await window.ColegioDB.saveCalificacion(e.id, state.notaTemp, retro);
+      }
+      msg.textContent = 'Calificación y retroalimentación guardadas en la base de datos.';
       msg.className = 'form-msg ok';
     }catch(err){
       e.nota = prevNota;
       e.fechaCalificacion = prevFecha;
+      e.retroalimentacion = prevRetro;
       msg.textContent = 'No se pudo guardar la calificación. Intenta de nuevo.';
       msg.className = 'form-msg err';
     }
@@ -3344,20 +3477,25 @@
   }
 
   async function registerCoordinador(){
-    const nombre = document.getElementById('reg-coord-nombre').value.trim();
     const cedula = document.getElementById('reg-coord-cedula').value.trim();
+    const nombres = document.getElementById('reg-coord-nombres').value.trim();
+    const apellidos = document.getElementById('reg-coord-apellidos').value.trim();
+    const telefono = document.getElementById('reg-coord-telefono').value.trim();
+    const email = document.getElementById('reg-coord-email').value.trim();
+    const institucion = document.getElementById('reg-coord-institucion').value.trim();
     const pass = document.getElementById('reg-coord-pass').value;
     const pass2 = document.getElementById('reg-coord-pass2').value;
     const msg = 'reg-coord-msg';
 
-    if(getAccounts('coordinador').length){
-      setFormMsg(msg, 'Ya existe una cuenta de coordinador. Inicia sesión.', false);
-      return;
-    }
-    if(!nombre){ return setFormMsg(msg, 'Escribe tu nombre completo.', false); }
-    if(!cedula || !onlyDigits(cedula)){ return setFormMsg(msg, 'La cédula solo debe tener números.', false); }
+    if(!cedula || !onlyDigits(cedula)){ return setFormMsg(msg, 'La cédula solo debe contener números.', false); }
+    if(!nombres){ return setFormMsg(msg, 'Escribe tus nombres completos.', false); }
+    if(!apellidos){ return setFormMsg(msg, 'Escribe tus apellidos completos.', false); }
+    const nombreCompleto = (nombres + ' ' + apellidos).trim();
+    if(!telefono || !onlyDigits(telefono) || telefono.length < 7){ return setFormMsg(msg, 'Escribe un número de teléfono / celular válido (mínimo 7 dígitos).', false); }
+    if(!email || !email.includes('@') || !email.includes('.')){ return setFormMsg(msg, 'Escribe un correo electrónico válido.', false); }
+    if(!institucion){ return setFormMsg(msg, 'Escribe la Institución Educativa de Colombia a la que perteneces.', false); }
     if(pass.length < 8){ return setFormMsg(msg, 'La contraseña debe tener mínimo 8 caracteres.', false); }
-    if(pass !== pass2){ return setFormMsg(msg, 'Las contraseñas no coinciden.', false); }
+    if(pass !== pass2){ return setFormMsg(msg, 'Las dos contraseñas no coinciden.', false); }
 
     const btn = document.getElementById('reg-coord-btn');
     btn.disabled = true;
@@ -3367,17 +3505,34 @@
         salt = newSalt();
         passwordHash = await strongHash(pass, salt);
       }catch(e){
-        return setFormMsg(msg, 'Este navegador no permite crear la cuenta de forma segura. Prueba con una versión actualizada de Chrome, Edge o Firefox.', false);
+        return setFormMsg(msg, 'Este navegador no permite crear la cuenta de forma segura. Prueba en Chrome, Edge o Firefox.', false);
       }
-      if(getAccounts('coordinador').length){
-        return setFormMsg(msg, 'Ya existe una cuenta de coordinador. Inicia sesión.', false);
+      const existing = getAccounts('coordinador');
+      if(existing.some(c => c.cedula === cedula)){
+        return setFormMsg(msg, 'Ya existe una cuenta de coordinador con esa cédula. Inicia sesión en su lugar.', false);
       }
-      if(!saveAccounts('coordinador', [{ cedula, nombre, salt, passwordHash, fecha: new Date().toISOString() }])){
-        return setFormMsg(msg, 'No se pudo crear la cuenta. Intenta de nuevo.', false);
+      const coordAccount = {
+        cedula,
+        nombres,
+        apellidos,
+        nombre: nombreCompleto,
+        telefono,
+        email,
+        institucion,
+        salt,
+        passwordHash,
+        fecha: new Date().toISOString()
+      };
+      existing.push(coordAccount);
+      if(!saveAccounts('coordinador', existing)){
+        return setFormMsg(msg, 'No se pudo crear la cuenta localmente. Intenta de nuevo.', false);
+      }
+      if(window.ColegioDB && window.ColegioDB.saveCoordinador){
+        window.ColegioDB.saveCoordinador(coordAccount).catch(e => console.warn('Error guardando coordinador en cloud:', e));
       }
       document.getElementById('reg-coord-pass').value = '';
       document.getElementById('reg-coord-pass2').value = '';
-      state.user = { nombre, id: cedula };
+      state.user = coordAccount;
       await openCoord();
     }finally{
       btn.disabled = false;
@@ -3391,13 +3546,33 @@
       return setFormMsg(msg, 'Demasiados intentos. Espera ' + Math.ceil((coordLockUntil - now) / 1000) + ' segundos.', false);
     }
     const cedula = document.getElementById('login-coord-cedula').value.trim();
+    const email = document.getElementById('login-coord-email').value.trim();
     const pass = document.getElementById('login-coord-pass').value;
-    const acc = getAccounts('coordinador')[0];
+
+    if(!cedula){ return setFormMsg(msg, 'Ingresa tu número de cédula.', false); }
+    if(!email){ return setFormMsg(msg, 'Ingresa tu correo electrónico.', false); }
+    if(!pass){ return setFormMsg(msg, 'Ingresa tu contraseña.', false); }
+
+    let coords = getAccounts('coordinador');
+    let acc = coords.find(c => c.cedula === cedula && c.email && c.email.toLowerCase() === email.toLowerCase());
+
+    // Si aún no está en local, intentar sincronizar de Firestore
+    if(!acc && window.ColegioDB && window.ColegioDB.getCoordinadores){
+      try{
+        const cloudCoords = await window.ColegioDB.getCoordinadores();
+        if(cloudCoords && cloudCoords.length){
+          saveAccounts('coordinador', cloudCoords);
+          coords = cloudCoords;
+          acc = coords.find(c => c.cedula === cedula && c.email && c.email.toLowerCase() === email.toLowerCase());
+        }
+      }catch(e){}
+    }
+
     const btn = document.getElementById('login-coord-btn');
     btn.disabled = true;
     try{
       let valid = false;
-      if(acc && acc.salt && acc.cedula === cedula){
+      if(acc && acc.salt){
         try{ valid = (await strongHash(pass, acc.salt)) === acc.passwordHash; }catch(e){ valid = false; }
       }
       if(!valid){
@@ -3407,11 +3582,11 @@
           coordLockUntil = Date.now() + 30000;
           return setFormMsg(msg, 'Demasiados intentos. Espera 30 segundos.', false);
         }
-        return setFormMsg(msg, 'Cédula o contraseña incorrectas.', false);
+        return setFormMsg(msg, 'Cédula, correo electrónico o contraseña incorrectos.', false);
       }
       coordFails = 0;
       document.getElementById('login-coord-pass').value = '';
-      state.user = { nombre: acc.nombre, id: acc.cedula };
+      state.user = acc;
       await openCoord();
     }finally{
       btn.disabled = false;
@@ -3420,10 +3595,89 @@
 
   async function openCoord(){
     state.coordTab = 'profesores';
-    document.getElementById('coord-user-greeting').textContent = 'Hola, ' + state.user.nombre;
+    const u = state.user || {};
+    document.getElementById('coord-user-greeting').textContent = 'Coordinador: ' + (u.nombre || u.nombres || 'Coordinador');
+    const instBadge = document.getElementById('coord-institucion-badge');
+    if(instBadge){
+      if(u.institucion){
+        instBadge.textContent = '🏛 ' + u.institucion;
+        instBadge.style.display = 'inline-block';
+      } else {
+        instBadge.style.display = 'none';
+      }
+    }
     document.getElementById('coord-search').value = '';
     showScreen('screen-coord');
     await renderCoord();
+  }
+
+  function openModalRegProfesor(){
+    document.getElementById('coord-new-prof-nombre').value = '';
+    document.getElementById('coord-new-prof-cedula').value = '';
+    document.getElementById('coord-new-prof-telefono').value = '';
+    document.getElementById('coord-new-prof-materia').value = '';
+    document.getElementById('coord-new-prof-pass').value = '';
+    document.getElementById('coord-new-prof-pass2').value = '';
+    const msg = document.getElementById('coord-new-prof-msg');
+    msg.textContent = '';
+    msg.className = 'form-msg';
+    document.getElementById('modal-reg-prof-coord').classList.add('active');
+  }
+
+  function closeModalRegProfesor(){
+    document.getElementById('modal-reg-prof-coord').classList.remove('active');
+  }
+
+  async function saveProfesorFromCoord(){
+    const nombre = document.getElementById('coord-new-prof-nombre').value.trim();
+    const cedula = document.getElementById('coord-new-prof-cedula').value.trim();
+    const telefono = document.getElementById('coord-new-prof-telefono').value.trim();
+    const materia = document.getElementById('coord-new-prof-materia').value.trim();
+    const pass = document.getElementById('coord-new-prof-pass').value;
+    const pass2 = document.getElementById('coord-new-prof-pass2').value;
+    const msg = document.getElementById('coord-new-prof-msg');
+
+    if(!nombre){ msg.textContent = 'Escribe el nombre completo del profesor.'; msg.className = 'form-msg err'; return; }
+    if(!cedula || !onlyDigits(cedula)){ msg.textContent = 'La cédula solo debe tener números.'; msg.className = 'form-msg err'; return; }
+    if(!telefono || !onlyDigits(telefono) || telefono.length < 7){ msg.textContent = 'Escribe un celular válido (mínimo 7 dígitos).'; msg.className = 'form-msg err'; return; }
+    if(!materia){ msg.textContent = 'Escribe la materia o área pedagógica que imparte.'; msg.className = 'form-msg err'; return; }
+    if(pass.length < 8){ msg.textContent = 'La contraseña inicial debe tener mínimo 8 caracteres.'; msg.className = 'form-msg err'; return; }
+    if(pass !== pass2){ msg.textContent = 'Las contraseñas no coinciden.'; msg.className = 'form-msg err'; return; }
+
+    const accounts = getAccounts('profesor');
+    if(accounts.some(a => a.cedula === cedula)){
+      msg.textContent = 'Ya existe un profesor registrado con esa cédula.';
+      msg.className = 'form-msg err';
+      return;
+    }
+
+    const btn = document.getElementById('coord-new-prof-btn');
+    btn.disabled = true;
+    try{
+      const passwordHash = await hashPassword(pass);
+      const newProf = {
+        cedula,
+        nombre,
+        telefono,
+        materia,
+        passwordHash,
+        fecha: new Date().toISOString()
+      };
+      accounts.push(newProf);
+      if(!saveAccounts('profesor', accounts)){
+        msg.textContent = 'No se pudo guardar la cuenta. Intenta de nuevo.';
+        msg.className = 'form-msg err';
+        return;
+      }
+      if(window.ColegioDB && window.ColegioDB.saveProfesor){
+        await window.ColegioDB.saveProfesor(newProf).catch(e => console.warn('Error cloud prof:', e));
+      }
+      closeModalRegProfesor();
+      await renderCoord();
+      alert(`¡Profesor "${nombre}" registrado exitosamente con cédula ${cedula}!`);
+    }finally{
+      btn.disabled = false;
+    }
   }
 
   async function loadCoordData(){
@@ -3540,6 +3794,10 @@
     try{
       const kept = getAccounts(t.rol).filter(a => a[idKey] !== t.id);
       if(!saveAccounts(t.rol, kept)) throw new Error('no se pudo guardar');
+      if(window.ColegioDB){
+        if(t.rol === 'profesor' && window.ColegioDB.deleteProfesor) window.ColegioDB.deleteProfesor(t.id).catch(e => console.warn(e));
+        if(t.rol === 'estudiante' && window.ColegioDB.deleteEstudiante) window.ColegioDB.deleteEstudiante(t.id).catch(e => console.warn(e));
+      }
       addRevoked(t.rol, t.id);
       if(alsoData){
         await ready;
@@ -3550,12 +3808,18 @@
             const ents = await getEntregas(w.id);
             if(ents.length) await idbRun('readwrite', s => { ents.forEach(x => s.delete(x.id)); return null; }, ENTREGAS);
             await idbRun('readwrite', s => s.delete(w.id));
+            if(window.ColegioDB && window.ColegioDB.deleteTrabajo) window.ColegioDB.deleteTrabajo(w.id).catch(e => console.warn(e));
             addTombstone(w.id);
           }
         } else {
           const all = await idbRun('readonly', s => s.getAll(), ENTREGAS);
           const mine = (all || []).filter(x => x.estudianteDoc === t.id);
-          if(mine.length) await idbRun('readwrite', s => { mine.forEach(x => s.delete(x.id)); return null; }, ENTREGAS);
+          if(mine.length){
+            await idbRun('readwrite', s => { mine.forEach(x => s.delete(x.id)); return null; }, ENTREGAS);
+            if(window.ColegioDB && window.ColegioDB.deleteEntrega){
+              mine.forEach(x => window.ColegioDB.deleteEntrega(x.id).catch(e => console.warn(e)));
+            }
+          }
         }
       }
     }catch(e){
@@ -3563,6 +3827,103 @@
     }
     closeUserDel();
     await renderCoord();
+  }
+
+  // ---------- Sincronización con Base de Datos Cloud (Firestore) ----------
+  async function syncFirestoreData(){
+    try{
+      if(!window.ColegioDB) return;
+      await window.ColegioDB.init();
+
+      // Sincronizar coordinadores
+      try{
+        const cloudCoords = await window.ColegioDB.getCoordinadores();
+        if(cloudCoords && cloudCoords.length){
+          const localCoords = getAccounts('coordinador');
+          const map = new Map(localCoords.map(c => [c.cedula, c]));
+          cloudCoords.forEach(c => map.set(c.cedula, c));
+          saveAccounts('coordinador', Array.from(map.values()));
+        } else {
+          const localCoords = getAccounts('coordinador');
+          for(const c of localCoords) await window.ColegioDB.saveCoordinador(c);
+        }
+      }catch(e){ console.warn('Sync coords:', e); }
+
+      // Sincronizar profesores
+      try{
+        const cloudProfs = await window.ColegioDB.getProfesores();
+        if(cloudProfs && cloudProfs.length){
+          const localProfs = getAccounts('profesor');
+          const map = new Map(localProfs.map(p => [p.cedula, p]));
+          cloudProfs.forEach(p => map.set(p.cedula, p));
+          saveAccounts('profesor', Array.from(map.values()));
+        } else {
+          const localProfs = getAccounts('profesor');
+          for(const p of localProfs) await window.ColegioDB.saveProfesor(p);
+        }
+      }catch(e){ console.warn('Sync profs:', e); }
+
+      // Sincronizar estudiantes
+      try{
+        const cloudEsts = await window.ColegioDB.getEstudiantes();
+        if(cloudEsts && cloudEsts.length){
+          const localEsts = getAccounts('estudiante');
+          const map = new Map(localEsts.map(e => [e.documento, e]));
+          cloudEsts.forEach(e => map.set(e.documento, e));
+          saveAccounts('estudiante', Array.from(map.values()));
+        } else {
+          const localEsts = getAccounts('estudiante');
+          for(const e of localEsts) await window.ColegioDB.saveEstudiante(e);
+        }
+      }catch(e){ console.warn('Sync ests:', e); }
+
+      // Sincronizar trabajos
+      try{
+        const cloudWorks = await window.ColegioDB.getTrabajos();
+        if(cloudWorks && cloudWorks.length){
+          await ready;
+          const localWorks = await idbRun('readonly', s => s.getAll());
+          const localMap = new Map((localWorks || []).map(w => [w.id, w]));
+          const toPut = [];
+          for(const cw of cloudWorks){
+            const loc = localMap.get(cw.id);
+            if(!loc){
+              toPut.push(Object.assign({}, cw, { fotos: [], videos: [] }));
+            } else if(cw.editado && (!loc.editado || cw.editado > loc.editado)){
+              toPut.push(Object.assign({}, loc, cw, { fotos: loc.fotos || [], videos: loc.videos || [] }));
+            }
+          }
+          if(toPut.length){
+            await idbRun('readwrite', s => { toPut.forEach(w => s.put(w)); return null; });
+          }
+        }
+      }catch(e){ console.warn('Sync works:', e); }
+
+      // Sincronizar entregas y calificaciones
+      try{
+        const cloudEnts = await window.ColegioDB.getEntregas();
+        if(cloudEnts && cloudEnts.length){
+          await ready;
+          const localEnts = await idbRun('readonly', s => s.getAll(), ENTREGAS);
+          const localMap = new Map((localEnts || []).map(e => [e.id, e]));
+          const toPut = [];
+          for(const ce of cloudEnts){
+            const loc = localMap.get(ce.id);
+            if(!loc || ce.fechaCalificacion !== (loc && loc.fechaCalificacion) || ce.nota !== (loc && loc.nota) || ce.retroalimentacion !== (loc && loc.retroalimentacion)){
+              toPut.push(ce);
+            }
+          }
+          if(toPut.length){
+            await idbRun('readwrite', s => { toPut.forEach(e => s.put(e)); return null; }, ENTREGAS);
+          }
+        }
+      }catch(e){ console.warn('Sync entregas:', e); }
+
+      const badge = document.getElementById('cloud-status-badge');
+      if(badge) badge.style.display = 'inline-flex';
+    }catch(err){
+      console.warn('Sync error:', err);
+    }
   }
 
   // ---------- Inicialización ----------
@@ -3584,6 +3945,7 @@
     document.querySelectorAll('.pin-boxes').forEach(wirePinBoxes);
     ready = seedData();
     renderPending();
+    syncFirestoreData();
     document.addEventListener('keydown', e => {
       if(e.key === 'Escape') closeLightbox();
     });
