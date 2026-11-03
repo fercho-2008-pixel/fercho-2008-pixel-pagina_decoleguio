@@ -1,0 +1,8 @@
+{
+  "name": "Rincón de Guías",
+  "description": "Plataforma escolar para gestión y entrega de guías pedagógicas entre profesores, estudiantes y coordinación.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "rincon-de-guias",
+  "version": "1.9.0",
+  "description": "Rincón de Guías - Plataforma de guías escolares",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "echo 'Build complete'",
+    "lint": "node -c server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
