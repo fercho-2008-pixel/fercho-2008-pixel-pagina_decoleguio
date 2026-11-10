@@ -1365,9 +1365,64 @@
       </div>
       <button class="primary-btn wide" onclick="loginProfesor()">Entrar</button>
       <div class="form-msg" id="login-prof-msg"></div>
+      
+      <div style="margin-top:14px;text-align:center;">
+        <button type="button" class="link-btn" onclick="openRecuperarProfesor()" style="color:var(--blue);font-weight:600;font-size:14px;text-decoration:underline;">
+          🔑 ¿Olvidaste tu contraseña? Recupera tu cuenta con tu cédula
+        </button>
+      </div>
+
       <div style="margin-top:20px;padding:12px 14px;background:#f3f7fa;border:1.5px solid var(--blue);border-radius:10px;font-size:13px;color:var(--ink-soft);line-height:1.4;text-align:left;">
         🔒 <strong>Registro exclusivo de profesores:</strong> Por disposición institucional, las cuentas de los docentes son creadas y gestionadas únicamente por el <strong>Coordinador</strong>. Si requieres una cuenta o restablecer tu acceso, contacta a la Coordinación escolar.
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PROFESOR: RECUPERAR CUENTA ============ -->
+<div class="screen" id="screen-recover-profesor">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="pill-btn" onclick="showScreen('screen-login-profesor')">← Volver a inicio de sesión</button>
+      <span class="role-tag profesor">Profesor</span>
+    </div>
+  </div>
+  <div class="screen-body auth-screen-body">
+    <div class="auth-card profesor-card" style="max-width:500px;">
+      <h2>Recuperar cuenta de profesor</h2>
+      <p class="auth-card-sub">Ingresa tu número de cédula para buscar tu cuenta de docente y asignar una nueva contraseña.</p>
+      
+      <div class="field">
+        <label for="recover-prof-cedula">Número de cédula *</label>
+        <div style="display:flex;gap:10px;">
+          <input type="text" inputmode="numeric" id="recover-prof-cedula" placeholder="Tu número de cédula" style="flex:1;" onkeydown="if(event.key==='Enter') searchProfesorForRecovery()">
+          <button type="button" class="primary-btn" onclick="searchProfesorForRecovery()" style="padding:10px 18px;font-size:14px;white-space:nowrap;background:var(--blue);">Buscar cédula</button>
+        </div>
+      </div>
+
+      <!-- Paso 2: Datos encontrados y nueva contraseña -->
+      <div id="recover-prof-step2" style="display:none;margin-top:18px;padding-top:16px;border-top:2px dashed var(--line);">
+        <div style="background:#eaf2f8;border-left:4px solid var(--blue);padding:12px 16px;border-radius:8px;margin-bottom:16px;text-align:left;">
+          <strong id="recover-prof-nombre-display" style="display:block;color:var(--ink);font-size:16px;margin-bottom:4px;"></strong>
+          <span id="recover-prof-materia-display" style="font-size:13px;color:var(--ink-soft);"></span>
+        </div>
+        
+        <div class="field">
+          <label for="recover-prof-pass">Nueva contraseña *</label>
+          <input type="password" id="recover-prof-pass" placeholder="Mínimo 8 caracteres">
+        </div>
+        
+        <div class="field">
+          <label for="recover-prof-pass2">Confirmar nueva contraseña *</label>
+          <input type="password" id="recover-prof-pass2" placeholder="Repite la nueva contraseña" onkeydown="if(event.key==='Enter') submitPasswordRecovery()">
+        </div>
+        
+        <button type="button" class="primary-btn wide" id="recover-prof-btn" onclick="submitPasswordRecovery()">Restablecer contraseña e ingresar</button>
+      </div>
+
+      <div class="form-msg" id="recover-prof-msg" role="status"></div>
+      
+      <p class="auth-switch" style="margin-top:18px;">¿Ya recuerdas tu contraseña? <button class="link-btn" onclick="showScreen('screen-login-profesor')">Inicia sesión</button></p>
     </div>
   </div>
 </div>
@@ -1495,8 +1550,8 @@
       </div>
 
       <div class="field">
-        <label for="reg-coord-email">Correo electrónico *</label>
-        <input type="email" id="reg-coord-email" placeholder="coordinador@colegio.edu.co">
+        <label for="reg-coord-email">Correo Gmail / Electrónico *</label>
+        <input type="email" id="reg-coord-email" placeholder="coordinador@gmail.com">
       </div>
 
       <div class="field">
@@ -1533,21 +1588,16 @@
   <div class="screen-body auth-screen-body">
     <div class="auth-card profesor-card coord-card">
       <h2>Acceso de coordinación</h2>
-      <p class="auth-card-sub">Para ingresar a tu cuenta de coordinador ingresa tu cédula, correo electrónico y contraseña.</p>
+      <p class="auth-card-sub">Para ingresar a tu cuenta de coordinación solo necesitas tu correo Gmail y contraseña.</p>
       
       <div class="field">
-        <label for="login-coord-cedula">Número de cédula *</label>
-        <input type="text" inputmode="numeric" id="login-coord-cedula" placeholder="Tu número de cédula">
-      </div>
-      
-      <div class="field">
-        <label for="login-coord-email">Correo electrónico *</label>
-        <input type="email" id="login-coord-email" placeholder="correo@institucion.edu.co">
+        <label for="login-coord-email">Correo Gmail *</label>
+        <input type="email" id="login-coord-email" placeholder="ejemplo@gmail.com" autocomplete="email">
       </div>
       
       <div class="field">
         <label for="login-coord-pass">Contraseña *</label>
-        <input type="password" id="login-coord-pass" placeholder="Tu contraseña">
+        <input type="password" id="login-coord-pass" placeholder="Tu contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter') loginCoordinador()">
       </div>
       
       <button class="primary-btn wide" id="login-coord-btn" onclick="loginCoordinador()">Entrar a Coordinación</button>
@@ -2076,17 +2126,153 @@
     goToGradeSelect('profesor');
   }
 
+  // ---------- Profesor: Recuperación de cuenta con Cédula ----------
+  let recoveryTeacherCurrent = null;
+
+  function openRecuperarProfesor(){
+    recoveryTeacherCurrent = null;
+    const inpCed = document.getElementById('recover-prof-cedula');
+    if(inpCed) inpCed.value = '';
+    const inpPass = document.getElementById('recover-prof-pass');
+    if(inpPass) inpPass.value = '';
+    const inpPass2 = document.getElementById('recover-prof-pass2');
+    if(inpPass2) inpPass2.value = '';
+    const step2 = document.getElementById('recover-prof-step2');
+    if(step2) step2.style.display = 'none';
+    const msg = document.getElementById('recover-prof-msg');
+    if(msg){ msg.textContent = ''; msg.className = 'form-msg'; }
+    showScreen('screen-recover-profesor');
+  }
+
+  async function searchProfesorForRecovery(){
+    const cedula = (document.getElementById('recover-prof-cedula').value || '').trim();
+    const msg = 'recover-prof-msg';
+    const step2 = document.getElementById('recover-prof-step2');
+    
+    if(!cedula || !onlyDigits(cedula)){
+      if(step2) step2.style.display = 'none';
+      return setFormMsg(msg, 'Ingresa un número de cédula válido (solo números).', false);
+    }
+    
+    setFormMsg(msg, 'Buscando cuenta de docente en base de datos...', true);
+    let accounts = getAccounts('profesor') || [];
+    let prof = accounts.find(a => String(a.cedula) === cedula);
+    
+    // Si no está en local, consultar en Firestore
+    if(!prof && window.ColegioDB && window.ColegioDB.getProfesores){
+      try{
+        const cloudProfs = await window.ColegioDB.getProfesores();
+        if(cloudProfs && cloudProfs.length){
+          cloudProfs.forEach(cp => {
+            const idx = accounts.findIndex(a => String(a.cedula) === String(cp.cedula));
+            if(idx >= 0){ accounts[idx] = Object.assign({}, accounts[idx], cp); }
+            else { accounts.push(cp); }
+          });
+          saveAccounts('profesor', accounts);
+          prof = accounts.find(a => String(a.cedula) === cedula);
+        }
+      }catch(err){
+        console.warn('Error consultando profesores en Firestore:', err);
+      }
+    }
+    
+    if(!prof){
+      if(step2) step2.style.display = 'none';
+      return setFormMsg(msg, 'No se encontró ningún docente registrado con la cédula ' + cedula + '. Consulta al Coordinador para tu registro.', false);
+    }
+    
+    recoveryTeacherCurrent = prof;
+    document.getElementById('recover-prof-nombre-display').textContent = '👨‍🏫 Docente: ' + (prof.nombre || 'Profesor');
+    document.getElementById('recover-prof-materia-display').textContent = 'Área / Asignatura: ' + (prof.materia || 'General') + ' • Cédula: ' + prof.cedula;
+    if(step2) step2.style.display = 'block';
+    setFormMsg(msg, '¡Docente encontrado! Ingresa tu nueva contraseña a continuación.', true);
+  }
+
+  async function submitPasswordRecovery(){
+    const msg = 'recover-prof-msg';
+    if(!recoveryTeacherCurrent){
+      return setFormMsg(msg, 'Primero ingresa y busca tu número de cédula.', false);
+    }
+    const pass = (document.getElementById('recover-prof-pass')?.value || '').trim();
+    const pass2 = (document.getElementById('recover-prof-pass2')?.value || '').trim();
+    
+    if(pass.length < 8){
+      return setFormMsg(msg, 'La nueva contraseña debe tener mínimo 8 caracteres.', false);
+    }
+    if(pass !== pass2){
+      return setFormMsg(msg, 'Las dos contraseñas no coinciden.', false);
+    }
+    
+    const btn = document.getElementById('recover-prof-btn');
+    if(btn) btn.disabled = true;
+    try {
+      const passwordHash = await hashPassword(pass);
+      recoveryTeacherCurrent.passwordHash = passwordHash;
+      
+      // Actualizar en localStorage
+      let accounts = getAccounts('profesor') || [];
+      const idx = accounts.findIndex(a => String(a.cedula) === String(recoveryTeacherCurrent.cedula));
+      if(idx >= 0){
+        accounts[idx].passwordHash = passwordHash;
+      } else {
+        accounts.push(recoveryTeacherCurrent);
+      }
+      saveAccounts('profesor', accounts);
+      
+      // Guardar en Firestore
+      if(window.ColegioDB && window.ColegioDB.saveProfesor){
+        try{
+          await window.ColegioDB.saveProfesor(recoveryTeacherCurrent);
+        }catch(e){
+          console.warn('Error actualizando contraseña en cloud:', e);
+        }
+      }
+      
+      setFormMsg(msg, '¡Contraseña restablecida con éxito! Ingresando a tus cursos...', true);
+      state.user = {
+        nombre: recoveryTeacherCurrent.nombre,
+        id: recoveryTeacherCurrent.cedula,
+        telefono: recoveryTeacherCurrent.telefono || '',
+        materia: recoveryTeacherCurrent.materia || ''
+      };
+      setTimeout(() => {
+        goToGradeSelect('profesor');
+      }, 700);
+    } catch(err) {
+      setFormMsg(msg, 'Ocurrió un error al guardar la nueva contraseña. Intenta de nuevo.', false);
+    } finally {
+      if(btn) btn.disabled = false;
+    }
+  }
+
   async function loginProfesor(){
     const cedula = document.getElementById('login-prof-cedula').value.trim();
     const pass = document.getElementById('login-prof-pass').value;
-    const accounts = getAccounts('profesor');
-    const account = accounts.find(a => a.cedula === cedula);
+    let accounts = getAccounts('profesor');
+    let account = accounts.find(a => String(a.cedula) === cedula);
+    
+    // Si no está en local, intentar sincronizar de Firestore
+    if(!account && window.ColegioDB && window.ColegioDB.getProfesores){
+      try{
+        const cloudProfs = await window.ColegioDB.getProfesores();
+        if(cloudProfs && cloudProfs.length){
+          cloudProfs.forEach(cp => {
+            const idx = accounts.findIndex(a => String(a.cedula) === String(cp.cedula));
+            if(idx >= 0){ accounts[idx] = Object.assign({}, accounts[idx], cp); }
+            else { accounts.push(cp); }
+          });
+          saveAccounts('profesor', accounts);
+          account = accounts.find(a => String(a.cedula) === cedula);
+        }
+      }catch(e){}
+    }
+
     if(!account){
-      return setFormMsg('login-prof-msg','No hay ninguna cuenta con esa cédula. Regístrate primero.',false);
+      return setFormMsg('login-prof-msg','No hay ninguna cuenta con esa cédula. Solicita al Coordinador tu registro o recupera tu cuenta.',false);
     }
     const passwordHash = await hashPassword(pass);
     if(passwordHash !== account.passwordHash){
-      return setFormMsg('login-prof-msg','Cédula o contraseña incorrectas.',false);
+      return setFormMsg('login-prof-msg','Cédula o contraseña incorrectas. Si la olvidaste, puedes recuperarla con tu cédula.',false);
     }
     state.user = { nombre: account.nombre, id: account.cedula, telefono: account.telefono, materia: account.materia || '' };
     goToGradeSelect('profesor');
@@ -3545,31 +3731,46 @@
     if(now < coordLockUntil){
       return setFormMsg(msg, 'Demasiados intentos. Espera ' + Math.ceil((coordLockUntil - now) / 1000) + ' segundos.', false);
     }
-    const cedula = document.getElementById('login-coord-cedula').value.trim();
-    const email = document.getElementById('login-coord-email').value.trim();
+    const emailEl = document.getElementById('login-coord-email');
+    const rawEmail = emailEl ? emailEl.value.trim() : '';
     const pass = document.getElementById('login-coord-pass').value;
 
-    if(!cedula){ return setFormMsg(msg, 'Ingresa tu número de cédula.', false); }
-    if(!email){ return setFormMsg(msg, 'Ingresa tu correo electrónico.', false); }
+    if(!rawEmail){ return setFormMsg(msg, 'Ingresa tu correo Gmail de coordinador.', false); }
     if(!pass){ return setFormMsg(msg, 'Ingresa tu contraseña.', false); }
 
-    let coords = getAccounts('coordinador');
-    let acc = coords.find(c => c.cedula === cedula && c.email && c.email.toLowerCase() === email.toLowerCase());
+    const normEmail = rawEmail.toLowerCase();
+    let coords = getAccounts('coordinador') || [];
+    let acc = coords.find(c => c.email && c.email.toLowerCase() === normEmail);
 
     // Si aún no está en local, intentar sincronizar de Firestore
     if(!acc && window.ColegioDB && window.ColegioDB.getCoordinadores){
       try{
         const cloudCoords = await window.ColegioDB.getCoordinadores();
         if(cloudCoords && cloudCoords.length){
-          saveAccounts('coordinador', cloudCoords);
-          coords = cloudCoords;
-          acc = coords.find(c => c.cedula === cedula && c.email && c.email.toLowerCase() === email.toLowerCase());
+          cloudCoords.forEach(cc => {
+            const idx = coords.findIndex(c => String(c.cedula) === String(cc.cedula));
+            if(idx >= 0){ coords[idx] = Object.assign({}, coords[idx], cc); }
+            else { coords.push(cc); }
+          });
+          saveAccounts('coordinador', coords);
+          acc = coords.find(c => c.email && c.email.toLowerCase() === normEmail);
         }
-      }catch(e){}
+      }catch(e){
+        console.warn('Error sincronizando coordinadores:', e);
+      }
+    }
+
+    // Si el usuario introdujo solo el usuario antes del @gmail.com
+    if(!acc){
+      acc = coords.find(c => {
+        if(!c.email) return false;
+        const e = c.email.toLowerCase();
+        return e === normEmail || e === normEmail + '@gmail.com';
+      });
     }
 
     const btn = document.getElementById('login-coord-btn');
-    btn.disabled = true;
+    if(btn) btn.disabled = true;
     try{
       let valid = false;
       if(acc && acc.salt){
@@ -3580,16 +3781,16 @@
         if(coordFails >= 5){
           coordFails = 0;
           coordLockUntil = Date.now() + 30000;
-          return setFormMsg(msg, 'Demasiados intentos. Espera 30 segundos.', false);
+          return setFormMsg(msg, 'Demasiados intentos fallidos. Espera 30 segundos.', false);
         }
-        return setFormMsg(msg, 'Cédula, correo electrónico o contraseña incorrectos.', false);
+        return setFormMsg(msg, 'Correo Gmail o contraseña incorrectos.', false);
       }
       coordFails = 0;
       document.getElementById('login-coord-pass').value = '';
       state.user = acc;
       await openCoord();
     }finally{
-      btn.disabled = false;
+      if(btn) btn.disabled = false;
     }
   }
 
