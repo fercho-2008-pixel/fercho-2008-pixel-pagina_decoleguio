@@ -84,7 +84,8 @@ service cloud.firestore {
 
     // Colección: profesores
     match /profesores/{profesorId} {
-      allow read: if isValidId(profesorId);
+      allow get: if isValidId(profesorId);
+      allow list: if true;
       allow create: if isValidId(profesorId) && isValidProfesor(incoming()) && incoming().cedula == profesorId;
       allow update: if isValidId(profesorId) && isValidProfesor(incoming()) && incoming().cedula == existing().cedula;
       allow delete: if isValidId(profesorId);
@@ -92,7 +93,8 @@ service cloud.firestore {
 
     // Colección: estudiantes
     match /estudiantes/{estudianteId} {
-      allow read: if isValidId(estudianteId);
+      allow get: if isValidId(estudianteId);
+      allow list: if true;
       allow create: if isValidId(estudianteId) && isValidEstudiante(incoming()) && incoming().documento == estudianteId;
       allow update: if isValidId(estudianteId) && isValidEstudiante(incoming()) && incoming().documento == existing().documento;
       allow delete: if isValidId(estudianteId);
@@ -100,7 +102,8 @@ service cloud.firestore {
 
     // Colección: coordinadores
     match /coordinadores/{coordinadorId} {
-      allow read: if isValidId(coordinadorId);
+      allow get: if isValidId(coordinadorId);
+      allow list: if true;
       allow create: if isValidId(coordinadorId) && isValidCoordinador(incoming()) && incoming().cedula == coordinadorId;
       allow update: if isValidId(coordinadorId) && isValidCoordinador(incoming()) && incoming().cedula == existing().cedula;
       allow delete: if isValidId(coordinadorId);
@@ -108,7 +111,8 @@ service cloud.firestore {
 
     // Colección: trabajos (guías y actividades pedagógicas)
     match /trabajos/{trabajoId} {
-      allow read: if isValidId(trabajoId);
+      allow get: if isValidId(trabajoId);
+      allow list: if true;
       allow create: if isValidId(trabajoId) && isValidTrabajo(incoming()) && incoming().id == trabajoId;
       allow update: if isValidId(trabajoId) && isValidTrabajo(incoming()) && incoming().id == existing().id;
       allow delete: if isValidId(trabajoId);
@@ -116,7 +120,8 @@ service cloud.firestore {
 
     // Colección: entregas (respuestas y calificaciones)
     match /entregas/{entregaId} {
-      allow read: if isValidId(entregaId);
+      allow get: if isValidId(entregaId);
+      allow list: if true;
       allow create: if isValidId(entregaId) && isValidEntrega(incoming()) && incoming().id == entregaId;
       allow update: if isValidId(entregaId) && isValidEntrega(incoming()) && incoming().id == existing().id;
       allow delete: if isValidId(entregaId);

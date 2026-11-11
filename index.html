@@ -1260,8 +1260,19 @@
   <div class="home-heading">
     <h1>Rincón de Guías</h1>
     <p>Un lugar donde los profesores guardan sus guías de trabajo y los estudiantes las encuentran fácilmente por grado.</p>
-    <div id="cloud-status-badge" style="display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:999px;background:#EBF5EE;border:1.5px solid var(--green);color:var(--green-dark);font-size:13px;font-weight:600;margin-top:14px;">
-      <span style="font-size:16px;">☁️</span> Base de datos Firestore conectada: Profesores, Estudiantes, Trabajos y Calificaciones
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px;flex-wrap:wrap;">
+      <div id="cloud-status-badge" style="display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:999px;background:#EBF5EE;border:1.5px solid var(--green);color:var(--green-dark);font-size:13px;font-weight:600;">
+        <span style="font-size:16px;">☁️</span> Base de datos conectada
+      </div>
+      <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;background:#eaf2f8;border:1.5px solid var(--blue);color:var(--blue);font-size:13px;font-weight:700;">
+        🌐 is.gd/rincondeguias
+      </div>
+      <button type="button" class="pill-btn" onclick="shareAppLink()" style="background:#fff;border:1.5px solid var(--line);font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;font-size:13px;cursor:pointer;">
+        🔗 Copiar link
+      </button>
+      <button type="button" class="pill-btn" onclick="shareWhatsApp()" style="background:#25D366;color:#fff;border:none;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;font-size:13px;cursor:pointer;">
+        💬 Compartir por WhatsApp
+      </button>
     </div>
   </div>
   <div class="doors">
@@ -1617,6 +1628,7 @@
     </div>
     <div class="topbar-left">
       <button class="primary-btn" onclick="openModalRegProfesor()" style="background:var(--purple-dark);padding:9px 16px;font-size:14px;">➕ Registrar nuevo profesor</button>
+      <button class="pill-btn" onclick="shareAppLink()">🔗 Compartir enlace</button>
       <button class="pill-btn" id="export-btn-coord" onclick="exportForStudents()">⭳ Descargar copia</button>
       <button class="pill-btn" onclick="logout()">Cerrar sesión</button>
     </div>
@@ -2350,6 +2362,27 @@
     showScreen('screen-grade');
   }
 
+  const OFFICIAL_SHORT_LINK = 'https://is.gd/rincondeguias';
+
+  function shareAppLink(){
+    const url = OFFICIAL_SHORT_LINK;
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(() => {
+        alert('✅ ¡Enlace corto copiado al portapapeles!\n\nEnvía este enlace por WhatsApp o mensaje:\n' + url);
+      }).catch(() => {
+        prompt('Copia este enlace para compartir la página:', url);
+      });
+    } else {
+      prompt('Copia este enlace para compartir la página:', url);
+    }
+  }
+
+  function shareWhatsApp(){
+    const url = OFFICIAL_SHORT_LINK;
+    const msg = encodeURIComponent('¡Hola! Ingresa al Rincón de Guías de nuestro colegio para consultar trabajos, guías y calificaciones en línea: ' + url);
+    window.open('https://api.whatsapp.com/send?text=' + msg, '_blank');
+  }
+
   async function selectGrade(grade){
     state.grade = grade;
     const greeting = greetingText();
@@ -2364,6 +2397,15 @@
       document.getElementById('student-user-greeting').textContent = greeting;
       showScreen('screen-student');
       await renderStudentList();
+    }
+    // Sincronizar en segundo plano con Firestore para que aparezcan trabajos recién subidos desde otros dispositivos
+    if(typeof syncFirestoreData === 'function'){
+      syncFirestoreData().then(async () => {
+        if(state.grade === grade){
+          if(state.role === 'profesor') await renderTeacherList();
+          else await renderStudentList();
+        }
+      }).catch(e => console.warn('Sync on selectGrade:', e));
     }
   }
 
