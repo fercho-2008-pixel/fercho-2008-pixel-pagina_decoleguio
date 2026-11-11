@@ -2289,6 +2289,9 @@
       return setFormMsg('login-prof-msg','Cédula o contraseña incorrectas. Si la olvidaste, puedes recuperarla con tu cédula.',false);
     }
     state.user = { nombre: account.nombre, id: account.cedula, telefono: account.telefono, materia: account.materia || '' };
+    if(typeof syncFirestoreData === 'function'){
+      syncFirestoreData().catch(e => console.warn(e));
+    }
     goToGradeSelect('profesor');
   }
 
@@ -2331,8 +2334,27 @@
   async function loginEstudiante(){
     const doc = document.getElementById('login-est-doc').value.trim();
     const pin = getPinValue('login-est-pin');
-    const accounts = getAccounts('estudiante');
-    const account = accounts.find(a => a.documento === doc);
+    let accounts = getAccounts('estudiante') || [];
+    let account = accounts.find(a => String(a.documento) === doc);
+
+    // Si no está en el almacenamiento local de este dispositivo, buscar en la nube (Firestore)
+    if(!account && window.ColegioDB && window.ColegioDB.getEstudiantes){
+      try{
+        const cloudEsts = await window.ColegioDB.getEstudiantes();
+        if(cloudEsts && cloudEsts.length){
+          cloudEsts.forEach(ce => {
+            const idx = accounts.findIndex(a => String(a.documento) === String(ce.documento));
+            if(idx >= 0){ accounts[idx] = Object.assign({}, accounts[idx], ce); }
+            else { accounts.push(ce); }
+          });
+          saveAccounts('estudiante', accounts);
+          account = accounts.find(a => String(a.documento) === doc);
+        }
+      }catch(e){
+        console.warn('Error consultando estudiantes en cloud:', e);
+      }
+    }
+
     if(!account){
       return setFormMsg('login-est-msg','No hay ninguna cuenta con ese documento. Regístrate primero.',false);
     }
@@ -2342,6 +2364,12 @@
       return setFormMsg('login-est-msg','Documento o clave incorrectos.',false);
     }
     state.user = { nombre: account.nombre, id: account.documento, curso: account.curso || '' };
+
+    // Sincronizar todos los trabajos y entregas inmediatamente para que el estudiante vea todo en este dispositivo
+    if(typeof syncFirestoreData === 'function'){
+      syncFirestoreData().catch(e => console.warn(e));
+    }
+
     goToGradeSelect('estudiante');
   }
 
@@ -2970,8 +2998,9 @@
   function isOwnWork(w){
     const u = state.user;
     if(!u) return false;
-    if(w.profesorId) return w.profesorId === u.id;
-    return cleanText(w.profesorNombre, 120).toLowerCase() === cleanText(u.nombre, 120).toLowerCase();
+    if(w.profesorCedula && String(w.profesorCedula) === String(u.id)) return true;
+    if(w.profesorId && String(w.profesorId) === String(u.id)) return true;
+    return cleanText(w.profesorNombre || '', 120).toLowerCase() === cleanText(u.nombre || '', 120).toLowerCase();
   }
 
   async function startEdit(id){
@@ -3860,6 +3889,9 @@
       coordFails = 0;
       document.getElementById('login-coord-pass').value = '';
       state.user = acc;
+      if(typeof syncFirestoreData === 'function'){
+        syncFirestoreData().catch(e => console.warn(e));
+      }
       await openCoord();
     }finally{
       if(btn) btn.disabled = false;
