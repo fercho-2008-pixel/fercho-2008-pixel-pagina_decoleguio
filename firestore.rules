@@ -58,12 +58,15 @@ service cloud.firestore {
              data.grado is number && data.grado >= 1 && data.grado <= 5 &&
              data.titulo is string && data.titulo.size() > 0 && data.titulo.size() <= 200 &&
              data.profesorNombre is string && data.profesorNombre.size() > 0 && data.profesorNombre.size() <= 120 &&
-             (!('profesorCedula' in data) || (data.profesorCedula is string && data.profesorCedula.size() <= 30)) &&
-             (!('profesorTelefono' in data) || (data.profesorTelefono is string && data.profesorTelefono.size() <= 30)) &&
-             (!('guiaNombre' in data) || (data.guiaNombre is string && data.guiaNombre.size() <= 200)) &&
-             (!('preguntasNombre' in data) || (data.preguntasNombre is string && data.preguntasNombre.size() <= 200)) &&
-             (!('fecha' in data) || (data.fecha is string && data.fecha.size() <= 50)) &&
-             (!('editado' in data) || (data.editado is string && data.editado.size() <= 50));
+             (!('profesorCedula' in data) || data.profesorCedula == null || (data.profesorCedula is string && data.profesorCedula.size() <= 50)) &&
+             (!('profesorTelefono' in data) || data.profesorTelefono == null || (data.profesorTelefono is string && data.profesorTelefono.size() <= 50)) &&
+             (!('profesorMateria' in data) || data.profesorMateria == null || (data.profesorMateria is string && data.profesorMateria.size() <= 100)) &&
+             (!('guiaNombre' in data) || data.guiaNombre == null || (data.guiaNombre is string && data.guiaNombre.size() <= 250)) &&
+             (!('guiaHtml' in data) || data.guiaHtml == null || data.guiaHtml is string) &&
+             (!('preguntasNombre' in data) || data.preguntasNombre == null || (data.preguntasNombre is string && data.preguntasNombre.size() <= 250)) &&
+             (!('preguntasHtml' in data) || data.preguntasHtml == null || data.preguntasHtml is string) &&
+             (!('fecha' in data) || data.fecha == null || (data.fecha is string && data.fecha.size() <= 50)) &&
+             (!('editado' in data) || data.editado == null || (data.editado is string && data.editado.size() <= 50));
     }
 
     // Helper: Validar entrega / calificación

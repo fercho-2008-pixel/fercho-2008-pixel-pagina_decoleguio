@@ -79,11 +79,11 @@ export async function initFirebase() {
   }
 }
 
-// Helper to sanitize payload for Firestore (remove undefined / huge raw blobs)
+// Helper to sanitize payload for Firestore (remove undefined / null / huge raw blobs)
 function cleanPayload(obj) {
   const clean = {};
   for (const [k, v] of Object.entries(obj)) {
-    if (v !== undefined) {
+    if (v !== undefined && v !== null) {
       clean[k] = v;
     }
   }
@@ -180,22 +180,24 @@ export async function dbSaveTrabajo(work) {
   if (!db) return;
   const path = `trabajos/${work.id}`;
   try {
-    const data = cleanPayload({
+    const raw = {
       id: String(work.id),
       grado: Number(work.grado) || 1,
       titulo: String(work.titulo || 'Trabajo'),
       fecha: work.fecha || new Date().toISOString(),
-      editado: work.editado || null,
       profesorNombre: String(work.profesorNombre || 'Profesor'),
       profesorCedula: String(work.profesorCedula || work.profesorId || ''),
       profesorTelefono: String(work.profesorTelefono || ''),
       profesorMateria: String(work.profesorMateria || ''),
-      guiaHtml: work.guiaHtml ? String(work.guiaHtml).slice(0, 800000) : null,
       guiaNombre: String(work.guiaNombre || ''),
-      preguntasHtml: work.preguntasHtml ? String(work.preguntasHtml).slice(0, 800000) : null,
       preguntasNombre: String(work.preguntasNombre || '')
-    });
+    };
+    if (work.editado) raw.editado = String(work.editado);
+    if (work.guiaHtml) raw.guiaHtml = String(work.guiaHtml).slice(0, 800000);
+    if (work.preguntasHtml) raw.preguntasHtml = String(work.preguntasHtml).slice(0, 800000);
+    const data = cleanPayload(raw);
     await setDoc(doc(db, 'trabajos', data.id), data);
+    console.log('✅ Trabajo guardado en Firestore:', data.id, data.titulo);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }

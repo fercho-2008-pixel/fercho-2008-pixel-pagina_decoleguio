@@ -1742,14 +1742,15 @@
     </div>
     <div class="topbar-left">
       <h2 id="teacher-grade-heading"></h2>
+      <button class="pill-btn" onclick="manualSync(this)" style="background:#f0f7ff;color:var(--blue);font-weight:600;border:1.5px solid var(--blue);">🔄 Sincronizar guías</button>
       <button class="pill-btn" onclick="openAllEntregas('screen-teacher')">📥 Entregas</button>
-      <button class="pill-btn" id="export-btn" onclick="exportForStudents()">⭳ Descargar página actualizada</button>
+      <button class="pill-btn" id="export-btn" onclick="exportForStudents()">⭳ Descargar copia</button>
       <button class="pill-btn" onclick="logout()">Cerrar sesión</button>
     </div>
   </div>
   <div class="screen-body">
-    <div class="info-banner">
-      Esta página guarda los trabajos en este computador y navegador. Después de subir o eliminar trabajos, descarga la página actualizada con el botón de arriba y compártela donde tus estudiantes la abren (Drive, Sites, Classroom, etc.).
+    <div class="info-banner" style="background:#EBF5EE;border-left:4px solid var(--green);color:var(--green-dark);">
+      ☁️ <strong>Sincronización en la nube activa:</strong> Las guías y trabajos que subas se guardan automáticamente en la base de datos central de Firebase y quedan disponibles de inmediato para tus estudiantes en cualquier computador o celular.
     </div>
     <div class="upload-box" id="upload-box">
       <h3 id="upload-heading">Subir un nuevo trabajo</h3>
@@ -1837,6 +1838,7 @@
     </div>
     <div class="topbar-left">
       <h2 id="student-grade-heading"></h2>
+      <button class="pill-btn" onclick="manualSync(this)" style="background:#f0f7ff;color:var(--blue);font-weight:600;border:1.5px solid var(--blue);">🔄 Sincronizar guías</button>
       <button class="pill-btn" onclick="logout()">Cerrar sesión</button>
     </div>
   </div>
@@ -2383,6 +2385,21 @@
     window.open('https://api.whatsapp.com/send?text=' + msg, '_blank');
   }
 
+  async function manualSync(btnEl){
+    const btn = btnEl || (typeof event !== 'undefined' && event && event.target);
+    const origText = btn ? btn.textContent : '';
+    if(btn) btn.textContent = '🔄 Sincronizando…';
+    try {
+      await syncFirestoreData();
+      if(state.role === 'profesor') await renderTeacherList();
+      else if(state.role === 'estudiante') await renderStudentList();
+      if(btn) btn.textContent = '✅ ¡Sincronizado!';
+      setTimeout(() => { if(btn) btn.textContent = origText || '🔄 Sincronizar guías'; }, 2000);
+    } catch(e) {
+      if(btn) btn.textContent = origText || '🔄 Sincronizar guías';
+    }
+  }
+
   async function selectGrade(grade){
     state.grade = grade;
     const greeting = greetingText();
@@ -2487,7 +2504,16 @@
 
   async function getWorks(grade){
     await ready;
-    const list = await idbRun('readonly', s => s.index('grado').getAll(grade));
+    const gNum = Number(grade);
+    const gStr = String(grade);
+    let list = await idbRun('readonly', s => s.index('grado').getAll(gNum));
+    if(!list || !list.length){
+      list = await idbRun('readonly', s => s.index('grado').getAll(gStr));
+    }
+    if(!list || !list.length){
+      const all = await idbRun('readonly', s => s.getAll());
+      list = (all || []).filter(w => Number(w.grado) === gNum || String(w.grado) === gStr);
+    }
     (list || []).sort((a,b) => (a.fecha || '').localeCompare(b.fecha || ''));
     return list || [];
   }
@@ -2900,7 +2926,11 @@
       await ready;
       await idbRun('readwrite', s => s.put(work));
       if(window.ColegioDB && window.ColegioDB.saveTrabajo){
-        window.ColegioDB.saveTrabajo(work).catch(e => console.warn('Error guardando trabajo en cloud:', e));
+        try{
+          await window.ColegioDB.saveTrabajo(work);
+        }catch(e){
+          console.warn('Error guardando trabajo en cloud:', e);
+        }
       }
       clearPending(true);
       setUploadMsg(wasEditing ? 'Cambios guardados. El trabajo ya está actualizado.' : 'Trabajo subido y guardado en la base de datos.', true);
@@ -4120,45 +4150,68 @@
         }
       }catch(e){ console.warn('Sync ests:', e); }
 
-      // Sincronizar trabajos
+      // Sincronizar trabajos (bidireccional: nube <-> dispositivo local)
       try{
-        const cloudWorks = await window.ColegioDB.getTrabajos();
-        if(cloudWorks && cloudWorks.length){
-          await ready;
-          const localWorks = await idbRun('readonly', s => s.getAll());
-          const localMap = new Map((localWorks || []).map(w => [w.id, w]));
-          const toPut = [];
-          for(const cw of cloudWorks){
-            const loc = localMap.get(cw.id);
-            if(!loc){
-              toPut.push(Object.assign({}, cw, { fotos: [], videos: [] }));
-            } else if(cw.editado && (!loc.editado || cw.editado > loc.editado)){
-              toPut.push(Object.assign({}, loc, cw, { fotos: loc.fotos || [], videos: loc.videos || [] }));
+        const cloudWorks = (await window.ColegioDB.getTrabajos()) || [];
+        const cloudMap = new Map(cloudWorks.map(w => [String(w.id), w]));
+        await ready;
+        const localWorks = (await idbRun('readonly', s => s.getAll())) || [];
+
+        // 1. Si en este dispositivo hay guías guardadas que aún no subieron a la nube (ej: las que el profesor ya creó), subirlas automáticamente a Firestore
+        for(const lw of localWorks){
+          if(lw && lw.id && !cloudMap.has(String(lw.id))){
+            try{
+              await window.ColegioDB.saveTrabajo(lw);
+              console.log('✅ Guía local respaldada en Firestore:', lw.titulo);
+            }catch(err){
+              console.warn('Error respaldando guía local en cloud:', err);
             }
           }
-          if(toPut.length){
-            await idbRun('readwrite', s => { toPut.forEach(w => s.put(w)); return null; });
+        }
+
+        // 2. Traer de la nube cualquier guía para que se vea en este dispositivo
+        const localMap = new Map(localWorks.map(w => [String(w.id), w]));
+        const toPut = [];
+        for(const cw of cloudWorks){
+          const loc = localMap.get(String(cw.id));
+          const cwGrado = Number(cw.grado) || 1;
+          if(!loc){
+            toPut.push(Object.assign({}, cw, { grado: cwGrado, fotos: cw.fotos || [], videos: cw.videos || [] }));
+          } else if(cw.editado && (!loc.editado || cw.editado > loc.editado)){
+            toPut.push(Object.assign({}, loc, cw, { grado: cwGrado, fotos: loc.fotos || [], videos: loc.videos || [] }));
           }
+        }
+        if(toPut.length){
+          await idbRun('readwrite', s => { toPut.forEach(w => s.put(w)); return null; });
         }
       }catch(e){ console.warn('Sync works:', e); }
 
-      // Sincronizar entregas y calificaciones
+      // Sincronizar entregas y calificaciones (bidireccional)
       try{
-        const cloudEnts = await window.ColegioDB.getEntregas();
-        if(cloudEnts && cloudEnts.length){
-          await ready;
-          const localEnts = await idbRun('readonly', s => s.getAll(), ENTREGAS);
-          const localMap = new Map((localEnts || []).map(e => [e.id, e]));
-          const toPut = [];
-          for(const ce of cloudEnts){
-            const loc = localMap.get(ce.id);
-            if(!loc || ce.fechaCalificacion !== (loc && loc.fechaCalificacion) || ce.nota !== (loc && loc.nota) || ce.retroalimentacion !== (loc && loc.retroalimentacion)){
-              toPut.push(ce);
-            }
+        const cloudEnts = (await window.ColegioDB.getEntregas()) || [];
+        const cloudEntMap = new Map(cloudEnts.map(e => [String(e.id), e]));
+        await ready;
+        const localEnts = (await idbRun('readonly', s => s.getAll(), ENTREGAS)) || [];
+
+        // Subir entregas locales que no estén en la nube
+        for(const le of localEnts){
+          if(le && le.id && !cloudEntMap.has(String(le.id))){
+            try{
+              await window.ColegioDB.saveEntrega(le);
+            }catch(err){}
           }
-          if(toPut.length){
-            await idbRun('readwrite', s => { toPut.forEach(e => s.put(e)); return null; }, ENTREGAS);
+        }
+
+        const localMap = new Map(localEnts.map(e => [String(e.id), e]));
+        const toPut = [];
+        for(const ce of cloudEnts){
+          const loc = localMap.get(String(ce.id));
+          if(!loc || ce.fechaCalificacion !== (loc && loc.fechaCalificacion) || ce.nota !== (loc && loc.nota) || ce.retroalimentacion !== (loc && loc.retroalimentacion)){
+            toPut.push(ce);
           }
+        }
+        if(toPut.length){
+          await idbRun('readwrite', s => { toPut.forEach(e => s.put(e)); return null; }, ENTREGAS);
         }
       }catch(e){ console.warn('Sync entregas:', e); }
 
