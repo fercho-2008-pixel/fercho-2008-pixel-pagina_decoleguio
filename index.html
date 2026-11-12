@@ -1628,6 +1628,7 @@
     </div>
     <div class="topbar-left">
       <button class="primary-btn" onclick="openModalRegProfesor()" style="background:var(--purple-dark);padding:9px 16px;font-size:14px;">➕ Registrar nuevo profesor</button>
+      <button class="pill-btn" onclick="manualSync(this)" title="Sincronizar con la base de datos en la nube">🔄 Sincronizar</button>
       <button class="pill-btn" onclick="shareAppLink()">🔗 Compartir enlace</button>
       <button class="pill-btn" id="export-btn-coord" onclick="exportForStudents()">⭳ Descargar copia</button>
       <button class="pill-btn" onclick="logout()">Cerrar sesión</button>
@@ -2173,20 +2174,23 @@
     let prof = accounts.find(a => String(a.cedula) === cedula);
     
     // Si no está en local, consultar en Firestore
-    if(!prof && window.ColegioDB && window.ColegioDB.getProfesores){
-      try{
-        const cloudProfs = await window.ColegioDB.getProfesores();
-        if(cloudProfs && cloudProfs.length){
-          cloudProfs.forEach(cp => {
-            const idx = accounts.findIndex(a => String(a.cedula) === String(cp.cedula));
-            if(idx >= 0){ accounts[idx] = Object.assign({}, accounts[idx], cp); }
-            else { accounts.push(cp); }
-          });
-          saveAccounts('profesor', accounts);
-          prof = accounts.find(a => String(a.cedula) === cedula);
+    if(!prof){
+      const cdb = await getColegioDB();
+      if(cdb && cdb.getProfesores){
+        try{
+          const cloudProfs = await cdb.getProfesores();
+          if(cloudProfs && cloudProfs.length){
+            cloudProfs.forEach(cp => {
+              const idx = accounts.findIndex(a => String(a.cedula) === String(cp.cedula));
+              if(idx >= 0){ accounts[idx] = Object.assign({}, accounts[idx], cp); }
+              else { accounts.push(cp); }
+            });
+            saveAccounts('profesor', accounts);
+            prof = accounts.find(a => String(a.cedula) === cedula);
+          }
+        }catch(err){
+          console.warn('Error consultando profesores en Firestore:', err);
         }
-      }catch(err){
-        console.warn('Error consultando profesores en Firestore:', err);
       }
     }
     
@@ -2234,9 +2238,10 @@
       saveAccounts('profesor', accounts);
       
       // Guardar en Firestore
-      if(window.ColegioDB && window.ColegioDB.saveProfesor){
+      const cdb = await getColegioDB();
+      if(cdb && cdb.saveProfesor){
         try{
-          await window.ColegioDB.saveProfesor(recoveryTeacherCurrent);
+          await cdb.saveProfesor(recoveryTeacherCurrent);
         }catch(e){
           console.warn('Error actualizando contraseña en cloud:', e);
         }
@@ -2266,19 +2271,24 @@
     let account = accounts.find(a => String(a.cedula) === cedula);
     
     // Si no está en local, intentar sincronizar de Firestore
-    if(!account && window.ColegioDB && window.ColegioDB.getProfesores){
-      try{
-        const cloudProfs = await window.ColegioDB.getProfesores();
-        if(cloudProfs && cloudProfs.length){
-          cloudProfs.forEach(cp => {
-            const idx = accounts.findIndex(a => String(a.cedula) === String(cp.cedula));
-            if(idx >= 0){ accounts[idx] = Object.assign({}, accounts[idx], cp); }
-            else { accounts.push(cp); }
-          });
-          saveAccounts('profesor', accounts);
-          account = accounts.find(a => String(a.cedula) === cedula);
+    if(!account){
+      const cdb = await getColegioDB();
+      if(cdb && cdb.getProfesores){
+        try{
+          const cloudProfs = await cdb.getProfesores();
+          if(cloudProfs && cloudProfs.length){
+            cloudProfs.forEach(cp => {
+              const idx = accounts.findIndex(a => String(a.cedula) === String(cp.cedula));
+              if(idx >= 0){ accounts[idx] = Object.assign({}, accounts[idx], cp); }
+              else { accounts.push(cp); }
+            });
+            saveAccounts('profesor', accounts);
+            account = accounts.find(a => String(a.cedula) === cedula);
+          }
+        }catch(e){
+          console.warn('Error sincronizando profesores:', e);
         }
-      }catch(e){}
+      }
     }
 
     if(!account){
@@ -2319,8 +2329,9 @@
     if(!saveAccounts('estudiante', accounts)){
       return setFormMsg('reg-est-msg','No se pudo crear la cuenta. Intenta de nuevo.',false);
     }
-    if(window.ColegioDB && window.ColegioDB.saveEstudiante){
-      window.ColegioDB.saveEstudiante(newEst).catch(e => console.warn('Error guardando estudiante en cloud:', e));
+    const cdb = await getColegioDB();
+    if(cdb && cdb.saveEstudiante){
+      cdb.saveEstudiante(newEst).catch(e => console.warn('Error guardando estudiante en cloud:', e));
     }
 
     setFormMsg('reg-est-msg','¡Cuenta creada y guardada en base de datos!', true);
@@ -2338,20 +2349,23 @@
     let account = accounts.find(a => String(a.documento) === doc);
 
     // Si no está en el almacenamiento local de este dispositivo, buscar en la nube (Firestore)
-    if(!account && window.ColegioDB && window.ColegioDB.getEstudiantes){
-      try{
-        const cloudEsts = await window.ColegioDB.getEstudiantes();
-        if(cloudEsts && cloudEsts.length){
-          cloudEsts.forEach(ce => {
-            const idx = accounts.findIndex(a => String(a.documento) === String(ce.documento));
-            if(idx >= 0){ accounts[idx] = Object.assign({}, accounts[idx], ce); }
-            else { accounts.push(ce); }
-          });
-          saveAccounts('estudiante', accounts);
-          account = accounts.find(a => String(a.documento) === doc);
+    if(!account){
+      const cdb = await getColegioDB();
+      if(cdb && cdb.getEstudiantes){
+        try{
+          const cloudEsts = await cdb.getEstudiantes();
+          if(cloudEsts && cloudEsts.length){
+            cloudEsts.forEach(ce => {
+              const idx = accounts.findIndex(a => String(a.documento) === String(ce.documento));
+              if(idx >= 0){ accounts[idx] = Object.assign({}, accounts[idx], ce); }
+              else { accounts.push(ce); }
+            });
+            saveAccounts('estudiante', accounts);
+            account = accounts.find(a => String(a.documento) === doc);
+          }
+        }catch(e){
+          console.warn('Error consultando estudiantes en cloud:', e);
         }
-      }catch(e){
-        console.warn('Error consultando estudiantes en cloud:', e);
       }
     }
 
@@ -2421,10 +2435,11 @@
       await syncFirestoreData();
       if(state.role === 'profesor') await renderTeacherList();
       else if(state.role === 'estudiante') await renderStudentList();
+      else if(state.role === 'coordinador') await renderCoord();
       if(btn) btn.textContent = '✅ ¡Sincronizado!';
-      setTimeout(() => { if(btn) btn.textContent = origText || '🔄 Sincronizar guías'; }, 2000);
+      setTimeout(() => { if(btn) btn.textContent = origText || '🔄 Sincronizar'; }, 2000);
     } catch(e) {
-      if(btn) btn.textContent = origText || '🔄 Sincronizar guías';
+      if(btn) btn.textContent = origText || '🔄 Sincronizar';
     }
   }
 
@@ -2953,9 +2968,10 @@
     try{
       await ready;
       await idbRun('readwrite', s => s.put(work));
-      if(window.ColegioDB && window.ColegioDB.saveTrabajo){
+      const cdb = await getColegioDB();
+      if(cdb && cdb.saveTrabajo){
         try{
-          await window.ColegioDB.saveTrabajo(work);
+          await cdb.saveTrabajo(work);
         }catch(e){
           console.warn('Error guardando trabajo en cloud:', e);
         }
@@ -3814,8 +3830,14 @@
       if(!saveAccounts('coordinador', existing)){
         return setFormMsg(msg, 'No se pudo crear la cuenta localmente. Intenta de nuevo.', false);
       }
-      if(window.ColegioDB && window.ColegioDB.saveCoordinador){
-        window.ColegioDB.saveCoordinador(coordAccount).catch(e => console.warn('Error guardando coordinador en cloud:', e));
+      const cdb = await getColegioDB();
+      if(cdb && cdb.saveCoordinador){
+        try{
+          await cdb.saveCoordinador(coordAccount);
+          console.log('✅ Coordinador sincronizado en la nube Firestore');
+        }catch(e){
+          console.warn('Error guardando coordinador en cloud:', e);
+        }
       }
       document.getElementById('reg-coord-pass').value = '';
       document.getElementById('reg-coord-pass2').value = '';
@@ -3842,21 +3864,24 @@
     let coords = getAccounts('coordinador') || [];
     let acc = coords.find(c => String(c.cedula).trim() === rawCedula || (c.email && c.email.toLowerCase() === rawCedula.toLowerCase()));
 
-    // Si aún no está en local, intentar sincronizar de Firestore
-    if(!acc && window.ColegioDB && window.ColegioDB.getCoordinadores){
-      try{
-        const cloudCoords = await window.ColegioDB.getCoordinadores();
-        if(cloudCoords && cloudCoords.length){
-          cloudCoords.forEach(cc => {
-            const idx = coords.findIndex(c => String(c.cedula) === String(cc.cedula));
-            if(idx >= 0){ coords[idx] = Object.assign({}, coords[idx], cc); }
-            else { coords.push(cc); }
-          });
-          saveAccounts('coordinador', coords);
-          acc = coords.find(c => String(c.cedula).trim() === rawCedula || (c.email && c.email.toLowerCase() === rawCedula.toLowerCase()));
+    // Si aún no está en local, sincronizar desde la nube (Firestore)
+    if(!acc){
+      const cdb = await getColegioDB();
+      if(cdb && cdb.getCoordinadores){
+        try{
+          const cloudCoords = await cdb.getCoordinadores();
+          if(cloudCoords && cloudCoords.length){
+            cloudCoords.forEach(cc => {
+              const idx = coords.findIndex(c => String(c.cedula) === String(cc.cedula));
+              if(idx >= 0){ coords[idx] = Object.assign({}, coords[idx], cc); }
+              else { coords.push(cc); }
+            });
+            saveAccounts('coordinador', coords);
+            acc = coords.find(c => String(c.cedula).trim() === rawCedula || (c.email && c.email.toLowerCase() === rawCedula.toLowerCase()));
+          }
+        }catch(e){
+          console.warn('Error sincronizando coordinadores:', e);
         }
-      }catch(e){
-        console.warn('Error sincronizando coordinadores:', e);
       }
     }
 
@@ -3964,8 +3989,9 @@
         msg.className = 'form-msg err';
         return;
       }
-      if(window.ColegioDB && window.ColegioDB.saveProfesor){
-        await window.ColegioDB.saveProfesor(newProf).catch(e => console.warn('Error cloud prof:', e));
+      const cdb = await getColegioDB();
+      if(cdb && cdb.saveProfesor){
+        await cdb.saveProfesor(newProf).catch(e => console.warn('Error cloud prof:', e));
       }
       closeModalRegProfesor();
       await renderCoord();
@@ -4124,66 +4150,105 @@
     await renderCoord();
   }
 
+  // ---------- Helper para obtener conexión lista con Firebase Firestore ----------
+  async function getColegioDB(timeoutMs = 6000){
+    const start = Date.now();
+    while(!window.ColegioDB && (Date.now() - start < timeoutMs)){
+      await new Promise(r => setTimeout(r, 60));
+    }
+    if(window.ColegioDB && window.ColegioDB.ensureDb){
+      await window.ColegioDB.ensureDb().catch(() => null);
+    }
+    return window.ColegioDB || null;
+  }
+
   // ---------- Sincronización con Base de Datos Cloud (Firestore) ----------
   async function syncFirestoreData(){
     try{
-      if(!window.ColegioDB) return;
-      await window.ColegioDB.init();
+      const cdb = await getColegioDB();
+      if(!cdb){
+        console.warn('ColegioDB aún no disponible para sincronización');
+        return;
+      }
 
-      // Sincronizar coordinadores
+      // Sincronizar coordinadores (bidireccional)
       try{
-        const cloudCoords = await window.ColegioDB.getCoordinadores();
-        if(cloudCoords && cloudCoords.length){
-          const localCoords = getAccounts('coordinador');
-          const map = new Map(localCoords.map(c => [c.cedula, c]));
-          cloudCoords.forEach(c => map.set(c.cedula, c));
-          saveAccounts('coordinador', Array.from(map.values()));
-        } else {
-          const localCoords = getAccounts('coordinador');
-          for(const c of localCoords) await window.ColegioDB.saveCoordinador(c);
+        const cloudCoords = (await cdb.getCoordinadores()) || [];
+        const cloudMap = new Map(cloudCoords.map(c => [String(c.cedula), c]));
+        const localCoords = getAccounts('coordinador') || [];
+
+        // 1. Subir a Firestore cualquier coordinador registrado localmente que aún falte en la nube
+        for(const lc of localCoords){
+          if(lc && lc.cedula && !cloudMap.has(String(lc.cedula))){
+            try{
+              await cdb.saveCoordinador(lc);
+              console.log('✅ Coordinador local respaldado en Firestore:', lc.cedula);
+            }catch(err){ console.warn('Error subiendo coord:', err); }
+          }
         }
+
+        // 2. Descargar coordinadores de la nube para tenerlos en este dispositivo
+        const localMap = new Map(localCoords.map(c => [String(c.cedula), c]));
+        cloudCoords.forEach(c => localMap.set(String(c.cedula), Object.assign({}, localMap.get(String(c.cedula)) || {}, c)));
+        saveAccounts('coordinador', Array.from(localMap.values()));
       }catch(e){ console.warn('Sync coords:', e); }
 
-      // Sincronizar profesores
+      // Sincronizar profesores (bidireccional)
       try{
-        const cloudProfs = await window.ColegioDB.getProfesores();
-        if(cloudProfs && cloudProfs.length){
-          const localProfs = getAccounts('profesor');
-          const map = new Map(localProfs.map(p => [p.cedula, p]));
-          cloudProfs.forEach(p => map.set(p.cedula, p));
-          saveAccounts('profesor', Array.from(map.values()));
-        } else {
-          const localProfs = getAccounts('profesor');
-          for(const p of localProfs) await window.ColegioDB.saveProfesor(p);
+        const cloudProfs = (await cdb.getProfesores()) || [];
+        const cloudMap = new Map(cloudProfs.map(p => [String(p.cedula), p]));
+        const localProfs = getAccounts('profesor') || [];
+
+        // 1. Subir a Firestore cualquier profesor que aún no esté en la nube
+        for(const lp of localProfs){
+          if(lp && lp.cedula && !cloudMap.has(String(lp.cedula))){
+            try{
+              await cdb.saveProfesor(lp);
+              console.log('✅ Profesor local respaldado en Firestore:', lp.cedula);
+            }catch(err){ console.warn('Error subiendo prof:', err); }
+          }
         }
+
+        // 2. Descargar profesores de la nube a este dispositivo
+        const localMap = new Map(localProfs.map(p => [String(p.cedula), p]));
+        cloudProfs.forEach(p => localMap.set(String(p.cedula), Object.assign({}, localMap.get(String(p.cedula)) || {}, p)));
+        saveAccounts('profesor', Array.from(localMap.values()));
       }catch(e){ console.warn('Sync profs:', e); }
 
-      // Sincronizar estudiantes
+      // Sincronizar estudiantes (bidireccional)
       try{
-        const cloudEsts = await window.ColegioDB.getEstudiantes();
-        if(cloudEsts && cloudEsts.length){
-          const localEsts = getAccounts('estudiante');
-          const map = new Map(localEsts.map(e => [e.documento, e]));
-          cloudEsts.forEach(e => map.set(e.documento, e));
-          saveAccounts('estudiante', Array.from(map.values()));
-        } else {
-          const localEsts = getAccounts('estudiante');
-          for(const e of localEsts) await window.ColegioDB.saveEstudiante(e);
+        const cloudEsts = (await cdb.getEstudiantes()) || [];
+        const cloudMap = new Map(cloudEsts.map(e => [String(e.documento), e]));
+        const localEsts = getAccounts('estudiante') || [];
+
+        // 1. Subir a Firestore cualquier estudiante registrado en este dispositivo
+        for(const le of localEsts){
+          if(le && le.documento && !cloudMap.has(String(le.documento))){
+            try{
+              await cdb.saveEstudiante(le);
+              console.log('✅ Estudiante local respaldado en Firestore:', le.documento);
+            }catch(err){ console.warn('Error subiendo est:', err); }
+          }
         }
+
+        // 2. Descargar estudiantes de la nube a este dispositivo
+        const localMap = new Map(localEsts.map(e => [String(e.documento), e]));
+        cloudEsts.forEach(e => localMap.set(String(e.documento), Object.assign({}, localMap.get(String(e.documento)) || {}, e)));
+        saveAccounts('estudiante', Array.from(localMap.values()));
       }catch(e){ console.warn('Sync ests:', e); }
 
       // Sincronizar trabajos (bidireccional: nube <-> dispositivo local)
       try{
-        const cloudWorks = (await window.ColegioDB.getTrabajos()) || [];
+        const cloudWorks = (await cdb.getTrabajos()) || [];
         const cloudMap = new Map(cloudWorks.map(w => [String(w.id), w]));
         await ready;
         const localWorks = (await idbRun('readonly', s => s.getAll())) || [];
 
-        // 1. Si en este dispositivo hay guías guardadas que aún no subieron a la nube (ej: las que el profesor ya creó), subirlas automáticamente a Firestore
+        // 1. Si en este dispositivo hay guías guardadas que aún no subieron a la nube, subirlas automáticamente
         for(const lw of localWorks){
           if(lw && lw.id && !cloudMap.has(String(lw.id))){
             try{
-              await window.ColegioDB.saveTrabajo(lw);
+              await cdb.saveTrabajo(lw);
               console.log('✅ Guía local respaldada en Firestore:', lw.titulo);
             }catch(err){
               console.warn('Error respaldando guía local en cloud:', err);
@@ -4210,7 +4275,7 @@
 
       // Sincronizar entregas y calificaciones (bidireccional)
       try{
-        const cloudEnts = (await window.ColegioDB.getEntregas()) || [];
+        const cloudEnts = (await cdb.getEntregas()) || [];
         const cloudEntMap = new Map(cloudEnts.map(e => [String(e.id), e]));
         await ready;
         const localEnts = (await idbRun('readonly', s => s.getAll(), ENTREGAS)) || [];
@@ -4219,7 +4284,7 @@
         for(const le of localEnts){
           if(le && le.id && !cloudEntMap.has(String(le.id))){
             try{
-              await window.ColegioDB.saveEntrega(le);
+              await cdb.saveEntrega(le);
             }catch(err){}
           }
         }
@@ -4264,6 +4329,12 @@
     ready = seedData();
     renderPending();
     syncFirestoreData();
+    window.addEventListener('colegiodb:ready', () => {
+      syncFirestoreData();
+    });
+    window.addEventListener('load', () => {
+      syncFirestoreData();
+    });
     document.addEventListener('keydown', e => {
       if(e.key === 'Escape') closeLightbox();
     });

@@ -44,39 +44,46 @@ export function handleFirestoreError(error, operationType, path) {
 let db = null;
 let app = null;
 let isConnected = false;
+let initPromise = null;
 
 // Initialize connection and test connection
 export async function initFirebase() {
-  try {
-    const configRes = await fetch('/firebase-applet-config.json');
-    if (!configRes.ok) {
-      console.warn('No se pudo cargar firebase-applet-config.json');
-      return null;
-    }
-    const firebaseConfig = await configRes.json();
-    app = initializeApp(firebaseConfig);
-    // CRITICAL: Must pass databaseId from config
-    db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-
-    // Validate connection to Firestore
+  if (initPromise) return initPromise;
+  initPromise = (async () => {
     try {
-      await getDocFromServer(doc(db, 'test', 'connection'));
-      isConnected = true;
-      console.log('✅ Conexión con Firestore verificada exitosamente.');
-    } catch (testErr) {
-      if (testErr instanceof Error && testErr.message.includes('the client is offline')) {
-        console.error("Please check your Firebase configuration: client is offline.");
-      } else {
-        // Doc may simply not exist yet, connection is still online
+      const configRes = await fetch('/firebase-applet-config.json');
+      if (!configRes.ok) {
+        console.warn('No se pudo cargar firebase-applet-config.json (status ' + configRes.status + ')');
+        return null;
+      }
+      const firebaseConfig = await configRes.json();
+      app = initializeApp(firebaseConfig);
+      // CRITICAL: Must pass databaseId from config
+      db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+      // Validate connection to Firestore
+      try {
+        await getDocFromServer(doc(db, 'test', 'connection'));
+        isConnected = true;
+        console.log('✅ Conexión con Firestore verificada exitosamente.');
+      } catch (testErr) {
+        // Doc may not exist yet, connection is still online
         isConnected = true;
         console.log('✅ Firestore en línea.');
       }
+      return db;
+    } catch (err) {
+      console.error('Error al inicializar Firebase:', err);
+      initPromise = null;
+      return null;
     }
-    return db;
-  } catch (err) {
-    console.error('Error al inicializar Firebase:', err);
-    return null;
-  }
+  })();
+  return initPromise;
+}
+
+export async function ensureDb() {
+  if (db) return db;
+  return await initFirebase();
 }
 
 // Helper to sanitize payload for Firestore (remove undefined / null / huge raw blobs)
@@ -92,7 +99,11 @@ function cleanPayload(obj) {
 
 // ==================== PROFESORES ====================
 export async function dbSaveProfesor(profesor) {
-  if (!db) return;
+  const firestore = await ensureDb();
+  if (!firestore) {
+    console.warn('⚠️ No se puede guardar profesor: Firestore no disponible');
+    return;
+  }
   const path = `profesores/${profesor.cedula}`;
   try {
     const data = cleanPayload({
@@ -103,17 +114,19 @@ export async function dbSaveProfesor(profesor) {
       passwordHash: String(profesor.passwordHash || ''),
       fecha: profesor.fecha || new Date().toISOString()
     });
-    await setDoc(doc(db, 'profesores', data.cedula), data);
+    await setDoc(doc(firestore, 'profesores', data.cedula), data);
+    console.log('✅ Profesor guardado en Firestore:', data.cedula, data.nombre);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
 }
 
 export async function dbGetProfesores() {
-  if (!db) return [];
+  const firestore = await ensureDb();
+  if (!firestore) return [];
   const path = 'profesores';
   try {
-    const snap = await getDocs(collection(db, path));
+    const snap = await getDocs(collection(firestore, path));
     const list = [];
     snap.forEach(d => list.push(d.data()));
     return list;
@@ -124,10 +137,11 @@ export async function dbGetProfesores() {
 }
 
 export async function dbDeleteProfesor(cedula) {
-  if (!db) return;
+  const firestore = await ensureDb();
+  if (!firestore) return;
   const path = `profesores/${cedula}`;
   try {
-    await deleteDoc(doc(db, 'profesores', String(cedula)));
+    await deleteDoc(doc(firestore, 'profesores', String(cedula)));
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
@@ -135,7 +149,11 @@ export async function dbDeleteProfesor(cedula) {
 
 // ==================== ESTUDIANTES ====================
 export async function dbSaveEstudiante(estudiante) {
-  if (!db) return;
+  const firestore = await ensureDb();
+  if (!firestore) {
+    console.warn('⚠️ No se puede guardar estudiante: Firestore no disponible');
+    return;
+  }
   const path = `estudiantes/${estudiante.documento}`;
   try {
     const data = cleanPayload({
@@ -145,17 +163,19 @@ export async function dbSaveEstudiante(estudiante) {
       passwordHash: String(estudiante.passwordHash || ''),
       fecha: estudiante.fecha || new Date().toISOString()
     });
-    await setDoc(doc(db, 'estudiantes', data.documento), data);
+    await setDoc(doc(firestore, 'estudiantes', data.documento), data);
+    console.log('✅ Estudiante guardado en Firestore:', data.documento, data.nombre);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
 }
 
 export async function dbGetEstudiantes() {
-  if (!db) return [];
+  const firestore = await ensureDb();
+  if (!firestore) return [];
   const path = 'estudiantes';
   try {
-    const snap = await getDocs(collection(db, path));
+    const snap = await getDocs(collection(firestore, path));
     const list = [];
     snap.forEach(d => list.push(d.data()));
     return list;
@@ -166,10 +186,11 @@ export async function dbGetEstudiantes() {
 }
 
 export async function dbDeleteEstudiante(documento) {
-  if (!db) return;
+  const firestore = await ensureDb();
+  if (!firestore) return;
   const path = `estudiantes/${documento}`;
   try {
-    await deleteDoc(doc(db, 'estudiantes', String(documento)));
+    await deleteDoc(doc(firestore, 'estudiantes', String(documento)));
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
@@ -177,7 +198,11 @@ export async function dbDeleteEstudiante(documento) {
 
 // ==================== TRABAJOS ====================
 export async function dbSaveTrabajo(work) {
-  if (!db) return;
+  const firestore = await ensureDb();
+  if (!firestore) {
+    console.warn('⚠️ No se puede guardar trabajo: Firestore no disponible');
+    return;
+  }
   const path = `trabajos/${work.id}`;
   try {
     const raw = {
@@ -196,7 +221,7 @@ export async function dbSaveTrabajo(work) {
     if (work.guiaHtml) raw.guiaHtml = String(work.guiaHtml).slice(0, 800000);
     if (work.preguntasHtml) raw.preguntasHtml = String(work.preguntasHtml).slice(0, 800000);
     const data = cleanPayload(raw);
-    await setDoc(doc(db, 'trabajos', data.id), data);
+    await setDoc(doc(firestore, 'trabajos', data.id), data);
     console.log('✅ Trabajo guardado en Firestore:', data.id, data.titulo);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
@@ -204,10 +229,11 @@ export async function dbSaveTrabajo(work) {
 }
 
 export async function dbGetTrabajos(grade) {
-  if (!db) return [];
+  const firestore = await ensureDb();
+  if (!firestore) return [];
   const path = 'trabajos';
   try {
-    let q = collection(db, path);
+    let q = collection(firestore, path);
     if (grade) {
       q = query(q, where('grado', '==', Number(grade)));
     }
@@ -222,10 +248,11 @@ export async function dbGetTrabajos(grade) {
 }
 
 export async function dbDeleteTrabajo(id) {
-  if (!db) return;
+  const firestore = await ensureDb();
+  if (!firestore) return;
   const path = `trabajos/${id}`;
   try {
-    await deleteDoc(doc(db, 'trabajos', String(id)));
+    await deleteDoc(doc(firestore, 'trabajos', String(id)));
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
@@ -233,7 +260,11 @@ export async function dbDeleteTrabajo(id) {
 
 // ==================== ENTREGAS Y CALIFICACIONES ====================
 export async function dbSaveEntrega(entrega) {
-  if (!db) return;
+  const firestore = await ensureDb();
+  if (!firestore) {
+    console.warn('⚠️ No se puede guardar entrega: Firestore no disponible');
+    return;
+  }
   const path = `entregas/${entrega.id}`;
   try {
     const data = cleanPayload({
@@ -255,14 +286,16 @@ export async function dbSaveEntrega(entrega) {
       fechaCalificacion: entrega.fechaCalificacion || null,
       retroalimentacion: entrega.retroalimentacion ? String(entrega.retroalimentacion).slice(0, 1000) : null
     });
-    await setDoc(doc(db, 'entregas', data.id), data);
+    await setDoc(doc(firestore, 'entregas', data.id), data);
+    console.log('✅ Entrega guardada en Firestore:', data.id);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
 }
 
 export async function dbSaveCalificacion(entregaId, nota, retroalimentacion) {
-  if (!db) return;
+  const firestore = await ensureDb();
+  if (!firestore) return;
   const path = `entregas/${entregaId}`;
   try {
     const patch = {
@@ -272,17 +305,18 @@ export async function dbSaveCalificacion(entregaId, nota, retroalimentacion) {
     if (retroalimentacion !== undefined) {
       patch.retroalimentacion = retroalimentacion ? String(retroalimentacion).slice(0, 1000) : null;
     }
-    await updateDoc(doc(db, 'entregas', String(entregaId)), patch);
+    await updateDoc(doc(firestore, 'entregas', String(entregaId)), patch);
   } catch (err) {
     handleFirestoreError(err, OperationType.UPDATE, path);
   }
 }
 
 export async function dbGetEntregas(trabajoId) {
-  if (!db) return [];
+  const firestore = await ensureDb();
+  if (!firestore) return [];
   const path = 'entregas';
   try {
-    let q = collection(db, path);
+    let q = collection(firestore, path);
     if (trabajoId) {
       q = query(q, where('trabajoId', '==', String(trabajoId)));
     }
@@ -297,10 +331,11 @@ export async function dbGetEntregas(trabajoId) {
 }
 
 export async function dbDeleteEntrega(id) {
-  if (!db) return;
+  const firestore = await ensureDb();
+  if (!firestore) return;
   const path = `entregas/${id}`;
   try {
-    await deleteDoc(doc(db, 'entregas', String(id)));
+    await deleteDoc(doc(firestore, 'entregas', String(id)));
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
@@ -308,7 +343,11 @@ export async function dbDeleteEntrega(id) {
 
 // ==================== COORDINADORES ====================
 export async function dbSaveCoordinador(coord) {
-  if (!db) return;
+  const firestore = await ensureDb();
+  if (!firestore) {
+    console.warn('⚠️ No se puede guardar coordinador: Firestore no disponible');
+    return;
+  }
   const path = `coordinadores/${coord.cedula}`;
   try {
     const data = cleanPayload({
@@ -323,17 +362,19 @@ export async function dbSaveCoordinador(coord) {
       salt: String(coord.salt || ''),
       fecha: coord.fecha || new Date().toISOString()
     });
-    await setDoc(doc(db, 'coordinadores', data.cedula), data);
+    await setDoc(doc(firestore, 'coordinadores', data.cedula), data);
+    console.log('✅ Coordinador guardado en Firestore:', data.cedula, data.nombre);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
 }
 
 export async function dbGetCoordinadores() {
-  if (!db) return [];
+  const firestore = await ensureDb();
+  if (!firestore) return [];
   const path = 'coordinadores';
   try {
-    const snap = await getDocs(collection(db, path));
+    const snap = await getDocs(collection(firestore, path));
     const list = [];
     snap.forEach(d => list.push(d.data()));
     return list;
@@ -346,6 +387,7 @@ export async function dbGetCoordinadores() {
 // Global hook for application
 window.ColegioDB = {
   init: initFirebase,
+  ensureDb: ensureDb,
   isConnected: () => isConnected,
   saveProfesor: dbSaveProfesor,
   getProfesores: dbGetProfesores,
@@ -363,3 +405,15 @@ window.ColegioDB = {
   getEntregas: dbGetEntregas,
   deleteEntrega: dbDeleteEntrega
 };
+
+// Auto-initialize connection immediately on module load
+initFirebase().then((res) => {
+  if (res) {
+    console.log('🔥 ColegioDB conectado a Firebase Firestore.');
+    try {
+      window.dispatchEvent(new CustomEvent('colegiodb:ready'));
+    } catch (_) {}
+  }
+}).catch(err => {
+  console.warn('⚠️ Error en auto-inicio de Firebase:', err);
+});
