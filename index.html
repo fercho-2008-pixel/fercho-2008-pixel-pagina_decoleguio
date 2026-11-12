@@ -1599,11 +1599,11 @@
   <div class="screen-body auth-screen-body">
     <div class="auth-card profesor-card coord-card">
       <h2>Acceso de coordinación</h2>
-      <p class="auth-card-sub">Para ingresar a tu cuenta de coordinación solo necesitas tu correo Gmail y contraseña.</p>
+      <p class="auth-card-sub">Para ingresar a tu cuenta de coordinación solo necesitas tu cédula y contraseña.</p>
       
       <div class="field">
-        <label for="login-coord-email">Correo Gmail *</label>
-        <input type="email" id="login-coord-email" placeholder="ejemplo@gmail.com" autocomplete="email">
+        <label for="login-coord-cedula">Cédula de ciudadanía *</label>
+        <input type="text" id="login-coord-cedula" placeholder="Solo números (ej. 1020304050)" inputmode="numeric" autocomplete="username" onkeydown="if(event.key==='Enter') loginCoordinador()">
       </div>
       
       <div class="field">
@@ -2078,7 +2078,7 @@
     state.role = role;
     state.user = null;
     if(role === 'coordinador'){
-      showScreen(getAccounts('coordinador').length ? 'screen-login-coordinador' : 'screen-register-coordinador');
+      showScreen('screen-login-coordinador');
       return;
     }
     if(role === 'profesor'){
@@ -3832,16 +3832,15 @@
     if(now < coordLockUntil){
       return setFormMsg(msg, 'Demasiados intentos. Espera ' + Math.ceil((coordLockUntil - now) / 1000) + ' segundos.', false);
     }
-    const emailEl = document.getElementById('login-coord-email');
-    const rawEmail = emailEl ? emailEl.value.trim() : '';
+    const cedulaEl = document.getElementById('login-coord-cedula');
+    const rawCedula = cedulaEl ? cedulaEl.value.trim() : '';
     const pass = document.getElementById('login-coord-pass').value;
 
-    if(!rawEmail){ return setFormMsg(msg, 'Ingresa tu correo Gmail de coordinador.', false); }
+    if(!rawCedula){ return setFormMsg(msg, 'Ingresa tu número de cédula de coordinador.', false); }
     if(!pass){ return setFormMsg(msg, 'Ingresa tu contraseña.', false); }
 
-    const normEmail = rawEmail.toLowerCase();
     let coords = getAccounts('coordinador') || [];
-    let acc = coords.find(c => c.email && c.email.toLowerCase() === normEmail);
+    let acc = coords.find(c => String(c.cedula).trim() === rawCedula || (c.email && c.email.toLowerCase() === rawCedula.toLowerCase()));
 
     // Si aún no está en local, intentar sincronizar de Firestore
     if(!acc && window.ColegioDB && window.ColegioDB.getCoordinadores){
@@ -3854,20 +3853,11 @@
             else { coords.push(cc); }
           });
           saveAccounts('coordinador', coords);
-          acc = coords.find(c => c.email && c.email.toLowerCase() === normEmail);
+          acc = coords.find(c => String(c.cedula).trim() === rawCedula || (c.email && c.email.toLowerCase() === rawCedula.toLowerCase()));
         }
       }catch(e){
         console.warn('Error sincronizando coordinadores:', e);
       }
-    }
-
-    // Si el usuario introdujo solo el usuario antes del @gmail.com
-    if(!acc){
-      acc = coords.find(c => {
-        if(!c.email) return false;
-        const e = c.email.toLowerCase();
-        return e === normEmail || e === normEmail + '@gmail.com';
-      });
     }
 
     const btn = document.getElementById('login-coord-btn');
@@ -3884,7 +3874,7 @@
           coordLockUntil = Date.now() + 30000;
           return setFormMsg(msg, 'Demasiados intentos fallidos. Espera 30 segundos.', false);
         }
-        return setFormMsg(msg, 'Correo Gmail o contraseña incorrectos.', false);
+        return setFormMsg(msg, 'Cédula o contraseña incorrectos.', false);
       }
       coordFails = 0;
       document.getElementById('login-coord-pass').value = '';

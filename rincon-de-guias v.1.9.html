@@ -1915,8 +1915,7 @@
     state.role = role;
     state.user = null;
     if(role === 'coordinador'){
-      // Si ya hay coordinador solo se inicia sesión; si no, se crea la cuenta
-      showScreen(getAccounts('coordinador').length ? 'screen-login-coordinador' : 'screen-register-coordinador');
+      showScreen('screen-login-coordinador');
       return;
     }
     const title = document.getElementById('auth-choice-title');
