@@ -1,5 +1,5 @@
 // Client-side Firebase Firestore Integration for Rincón de Guías
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import {
   getFirestore,
   doc,
@@ -21,6 +21,16 @@ export const OperationType = {
   LIST: 'list',
   GET: 'get',
   WRITE: 'write',
+};
+
+const FALLBACK_FIREBASE_CONFIG = {
+  projectId: "agile-decorator-kcxst",
+  appId: "1:622150795854:web:7e8103f8e5c5862d81b91f",
+  apiKey: "AIzaSyChkxcqh9kmVgT4DTQFGZT8Hu9Uliu0ceU",
+  authDomain: "agile-decorator-kcxst.firebaseapp.com",
+  firestoreDatabaseId: "ai-studio-paginadecoleguio-b9ec9201-73e7-4dd5-a55a-ba2788b864aa",
+  storageBucket: "agile-decorator-kcxst.firebasestorage.app",
+  messagingSenderId: "622150795854"
 };
 
 export function handleFirestoreError(error, operationType, path) {
@@ -45,19 +55,32 @@ let db = null;
 let app = null;
 let isConnected = false;
 let initPromise = null;
+let lastError = null;
 
 // Initialize connection and test connection
 export async function initFirebase() {
+  if (db) return db;
   if (initPromise) return initPromise;
   initPromise = (async () => {
     try {
-      const configRes = await fetch('/firebase-applet-config.json');
-      if (!configRes.ok) {
-        console.warn('No se pudo cargar firebase-applet-config.json (status ' + configRes.status + ')');
-        return null;
+      let firebaseConfig = null;
+      try {
+        const configRes = await fetch('/firebase-applet-config.json', { cache: 'no-store' });
+        if (configRes.ok) {
+          const contentType = configRes.headers.get('content-type') || '';
+          const text = await configRes.text();
+          if (contentType.includes('json') || text.trim().startsWith('{')) {
+            firebaseConfig = JSON.parse(text);
+          }
+        }
+      } catch (fetchErr) {
+        console.warn('Uso de configuración de respaldo Firebase:', fetchErr);
       }
-      const firebaseConfig = await configRes.json();
-      app = initializeApp(firebaseConfig);
+      if (!firebaseConfig || !firebaseConfig.projectId) {
+        firebaseConfig = FALLBACK_FIREBASE_CONFIG;
+      }
+
+      app = getApps().length ? getApp() : initializeApp(firebaseConfig);
       // CRITICAL: Must pass databaseId from config
       db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
@@ -65,14 +88,23 @@ export async function initFirebase() {
       try {
         await getDocFromServer(doc(db, 'test', 'connection'));
         isConnected = true;
+        lastError = null;
         console.log('✅ Conexión con Firestore verificada exitosamente.');
       } catch (testErr) {
-        // Doc may not exist yet, connection is still online
-        isConnected = true;
-        console.log('✅ Firestore en línea.');
+        if (testErr instanceof Error && testErr.message.includes('the client is offline')) {
+          isConnected = false;
+          lastError = testErr.message;
+          console.error("Please check your Firebase configuration: client is offline.");
+        } else {
+          // Doc may not exist yet, connection is still online
+          isConnected = true;
+          lastError = null;
+          console.log('✅ Firestore en línea.');
+        }
       }
       return db;
     } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
       console.error('Error al inicializar Firebase:', err);
       initPromise = null;
       return null;
@@ -101,20 +133,20 @@ function cleanPayload(obj) {
 export async function dbSaveProfesor(profesor) {
   const firestore = await ensureDb();
   if (!firestore) {
-    console.warn('⚠️ No se puede guardar profesor: Firestore no disponible');
-    return;
+    throw new Error('No hay conexión con Firestore para guardar al profesor.');
   }
   const path = `profesores/${profesor.cedula}`;
   try {
     const data = cleanPayload({
-      cedula: String(profesor.cedula),
-      nombre: String(profesor.nombre || ''),
-      telefono: String(profesor.telefono || ''),
-      materia: String(profesor.materia || ''),
+      cedula: String(profesor.cedula).trim(),
+      nombre: String(profesor.nombre || '').trim(),
+      telefono: String(profesor.telefono || '').trim(),
+      materia: String(profesor.materia || '').trim(),
       passwordHash: String(profesor.passwordHash || ''),
       fecha: profesor.fecha || new Date().toISOString()
     });
     await setDoc(doc(firestore, 'profesores', data.cedula), data);
+    isConnected = true;
     console.log('✅ Profesor guardado en Firestore:', data.cedula, data.nombre);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
@@ -127,6 +159,7 @@ export async function dbGetProfesores() {
   const path = 'profesores';
   try {
     const snap = await getDocs(collection(firestore, path));
+    isConnected = true;
     const list = [];
     snap.forEach(d => list.push(d.data()));
     return list;
@@ -151,19 +184,19 @@ export async function dbDeleteProfesor(cedula) {
 export async function dbSaveEstudiante(estudiante) {
   const firestore = await ensureDb();
   if (!firestore) {
-    console.warn('⚠️ No se puede guardar estudiante: Firestore no disponible');
-    return;
+    throw new Error('No hay conexión con Firestore para guardar al estudiante.');
   }
   const path = `estudiantes/${estudiante.documento}`;
   try {
     const data = cleanPayload({
-      documento: String(estudiante.documento),
-      nombre: String(estudiante.nombre || ''),
+      documento: String(estudiante.documento).trim(),
+      nombre: String(estudiante.nombre || '').trim(),
       curso: String(estudiante.curso || '1'),
       passwordHash: String(estudiante.passwordHash || ''),
       fecha: estudiante.fecha || new Date().toISOString()
     });
     await setDoc(doc(firestore, 'estudiantes', data.documento), data);
+    isConnected = true;
     console.log('✅ Estudiante guardado en Firestore:', data.documento, data.nombre);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
@@ -176,6 +209,7 @@ export async function dbGetEstudiantes() {
   const path = 'estudiantes';
   try {
     const snap = await getDocs(collection(firestore, path));
+    isConnected = true;
     const list = [];
     snap.forEach(d => list.push(d.data()));
     return list;
@@ -200,8 +234,7 @@ export async function dbDeleteEstudiante(documento) {
 export async function dbSaveTrabajo(work) {
   const firestore = await ensureDb();
   if (!firestore) {
-    console.warn('⚠️ No se puede guardar trabajo: Firestore no disponible');
-    return;
+    throw new Error('No hay conexión con Firestore para guardar el trabajo.');
   }
   const path = `trabajos/${work.id}`;
   try {
@@ -222,6 +255,7 @@ export async function dbSaveTrabajo(work) {
     if (work.preguntasHtml) raw.preguntasHtml = String(work.preguntasHtml).slice(0, 800000);
     const data = cleanPayload(raw);
     await setDoc(doc(firestore, 'trabajos', data.id), data);
+    isConnected = true;
     console.log('✅ Trabajo guardado en Firestore:', data.id, data.titulo);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
@@ -238,6 +272,7 @@ export async function dbGetTrabajos(grade) {
       q = query(q, where('grado', '==', Number(grade)));
     }
     const snap = await getDocs(q);
+    isConnected = true;
     const list = [];
     snap.forEach(d => list.push(d.data()));
     return list;
@@ -262,8 +297,7 @@ export async function dbDeleteTrabajo(id) {
 export async function dbSaveEntrega(entrega) {
   const firestore = await ensureDb();
   if (!firestore) {
-    console.warn('⚠️ No se puede guardar entrega: Firestore no disponible');
-    return;
+    throw new Error('No hay conexión con Firestore para guardar la entrega.');
   }
   const path = `entregas/${entrega.id}`;
   try {
@@ -287,6 +321,7 @@ export async function dbSaveEntrega(entrega) {
       retroalimentacion: entrega.retroalimentacion ? String(entrega.retroalimentacion).slice(0, 1000) : null
     });
     await setDoc(doc(firestore, 'entregas', data.id), data);
+    isConnected = true;
     console.log('✅ Entrega guardada en Firestore:', data.id);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
@@ -321,6 +356,7 @@ export async function dbGetEntregas(trabajoId) {
       q = query(q, where('trabajoId', '==', String(trabajoId)));
     }
     const snap = await getDocs(q);
+    isConnected = true;
     const list = [];
     snap.forEach(d => list.push(d.data()));
     return list;
@@ -345,24 +381,25 @@ export async function dbDeleteEntrega(id) {
 export async function dbSaveCoordinador(coord) {
   const firestore = await ensureDb();
   if (!firestore) {
-    console.warn('⚠️ No se puede guardar coordinador: Firestore no disponible');
-    return;
+    throw new Error('No hay conexión con Firestore para guardar al coordinador.');
   }
-  const path = `coordinadores/${coord.cedula}`;
+  const ced = String(coord.cedula).trim();
+  const path = `coordinadores/${ced}`;
   try {
     const data = cleanPayload({
-      cedula: String(coord.cedula),
-      nombres: String(coord.nombres || ''),
-      apellidos: String(coord.apellidos || ''),
+      cedula: ced,
+      nombres: String(coord.nombres || '').trim(),
+      apellidos: String(coord.apellidos || '').trim(),
       nombre: String(coord.nombre || `${coord.nombres || ''} ${coord.apellidos || ''}`.trim()),
-      telefono: String(coord.telefono || ''),
-      email: String(coord.email || ''),
-      institucion: String(coord.institucion || ''),
+      telefono: String(coord.telefono || '').trim(),
+      email: String(coord.email || '').trim(),
+      institucion: String(coord.institucion || '').trim(),
       passwordHash: String(coord.passwordHash || ''),
       salt: String(coord.salt || ''),
       fecha: coord.fecha || new Date().toISOString()
     });
     await setDoc(doc(firestore, 'coordinadores', data.cedula), data);
+    isConnected = true;
     console.log('✅ Coordinador guardado en Firestore:', data.cedula, data.nombre);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
@@ -375,6 +412,7 @@ export async function dbGetCoordinadores() {
   const path = 'coordinadores';
   try {
     const snap = await getDocs(collection(firestore, path));
+    isConnected = true;
     const list = [];
     snap.forEach(d => list.push(d.data()));
     return list;
@@ -389,6 +427,7 @@ window.ColegioDB = {
   init: initFirebase,
   ensureDb: ensureDb,
   isConnected: () => isConnected,
+  getLastError: () => lastError,
   saveProfesor: dbSaveProfesor,
   getProfesores: dbGetProfesores,
   deleteProfesor: dbDeleteProfesor,

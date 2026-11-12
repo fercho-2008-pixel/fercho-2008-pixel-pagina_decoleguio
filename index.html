@@ -1600,6 +1600,7 @@
     <div class="auth-card profesor-card coord-card">
       <h2>Acceso de coordinación</h2>
       <p class="auth-card-sub">Para ingresar a tu cuenta de coordinación solo necesitas tu cédula y contraseña.</p>
+      <div id="coord-login-cloud-info" style="font-size:12.5px;color:var(--purple-dark);background:#f3eef9;border:1px solid #d7c7ee;border-radius:8px;padding:8px 12px;margin-bottom:14px;display:none;"></div>
       
       <div class="field">
         <label for="login-coord-cedula">Cédula de ciudadanía *</label>
@@ -2022,23 +2023,32 @@
     return role === 'profesor' ? 'cuentas:profesores' : 'cuentas:estudiantes';
   }
 
+  const __memAccounts = {};
+
   function getAccounts(role){
+    const key = accountsKey(role);
     try{
-      const raw = localStorage.getItem(accountsKey(role));
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    }catch(e){
-      return [];
-    }
+      const raw = localStorage.getItem(key);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if(Array.isArray(parsed)){
+        __memAccounts[key] = parsed;
+        return parsed;
+      }
+    }catch(e){}
+    return Array.isArray(__memAccounts[key]) ? __memAccounts[key].slice() : [];
   }
 
   function saveAccounts(role, list){
+    const key = accountsKey(role);
+    __memAccounts[key] = Array.isArray(list) ? list.slice() : [];
     try{
-      localStorage.setItem(accountsKey(role), JSON.stringify(list));
-      return true;
-    }catch(e){
-      return false;
-    }
+      localStorage.setItem(key, JSON.stringify(__memAccounts[key]));
+    }catch(e){}
+    return true;
+  }
+
+  function normDocId(val){
+    return String(val || '').replace(/[\s.]/g, '').trim();
   }
 
   function onlyDigits(str){
@@ -2080,6 +2090,7 @@
     state.user = null;
     if(role === 'coordinador'){
       showScreen('screen-login-coordinador');
+      refreshCoordLoginCloudInfo();
       return;
     }
     if(role === 'profesor'){
@@ -2265,25 +2276,26 @@
   }
 
   async function loginProfesor(){
-    const cedula = document.getElementById('login-prof-cedula').value.trim();
+    const cedula = normDocId(document.getElementById('login-prof-cedula').value);
     const pass = document.getElementById('login-prof-pass').value;
     let accounts = getAccounts('profesor');
-    let account = accounts.find(a => String(a.cedula) === cedula);
-    
-    // Si no está en local, intentar sincronizar de Firestore
-    if(!account){
+    let account = accounts.find(a => normDocId(a.cedula) === cedula);
+    const passwordHash = await hashPassword(pass);
+
+    // Si no está en local o el hash local no coincide, consultar en Firestore
+    if(!account || passwordHash !== account.passwordHash){
       const cdb = await getColegioDB();
       if(cdb && cdb.getProfesores){
         try{
           const cloudProfs = await cdb.getProfesores();
           if(cloudProfs && cloudProfs.length){
             cloudProfs.forEach(cp => {
-              const idx = accounts.findIndex(a => String(a.cedula) === String(cp.cedula));
+              const idx = accounts.findIndex(a => normDocId(a.cedula) === normDocId(cp.cedula));
               if(idx >= 0){ accounts[idx] = Object.assign({}, accounts[idx], cp); }
               else { accounts.push(cp); }
             });
             saveAccounts('profesor', accounts);
-            account = accounts.find(a => String(a.cedula) === cedula);
+            account = accounts.find(a => normDocId(a.cedula) === cedula);
           }
         }catch(e){
           console.warn('Error sincronizando profesores:', e);
@@ -2294,13 +2306,12 @@
     if(!account){
       return setFormMsg('login-prof-msg','No hay ninguna cuenta con esa cédula. Solicita al Coordinador tu registro o recupera tu cuenta.',false);
     }
-    const passwordHash = await hashPassword(pass);
     if(passwordHash !== account.passwordHash){
       return setFormMsg('login-prof-msg','Cédula o contraseña incorrectas. Si la olvidaste, puedes recuperarla con tu cédula.',false);
     }
     state.user = { nombre: account.nombre, id: account.cedula, telefono: account.telefono, materia: account.materia || '' };
     if(typeof syncFirestoreData === 'function'){
-      syncFirestoreData().catch(e => console.warn(e));
+      await syncFirestoreData().catch(e => console.warn(e));
     }
     goToGradeSelect('profesor');
   }
@@ -2331,7 +2342,11 @@
     }
     const cdb = await getColegioDB();
     if(cdb && cdb.saveEstudiante){
-      cdb.saveEstudiante(newEst).catch(e => console.warn('Error guardando estudiante en cloud:', e));
+      try{
+        await cdb.saveEstudiante(newEst);
+      }catch(e){
+        console.warn('Error guardando estudiante en cloud:', e);
+      }
     }
 
     setFormMsg('reg-est-msg','¡Cuenta creada y guardada en base de datos!', true);
@@ -2343,25 +2358,26 @@
   }
 
   async function loginEstudiante(){
-    const doc = document.getElementById('login-est-doc').value.trim();
+    const doc = normDocId(document.getElementById('login-est-doc').value);
     const pin = getPinValue('login-est-pin');
     let accounts = getAccounts('estudiante') || [];
-    let account = accounts.find(a => String(a.documento) === doc);
+    let account = accounts.find(a => normDocId(a.documento) === doc);
+    const passwordHash = await hashPassword(pin);
 
-    // Si no está en el almacenamiento local de este dispositivo, buscar en la nube (Firestore)
-    if(!account){
+    // Si no está en local o no coincide, buscar en la nube (Firestore)
+    if(!account || passwordHash !== account.passwordHash){
       const cdb = await getColegioDB();
       if(cdb && cdb.getEstudiantes){
         try{
           const cloudEsts = await cdb.getEstudiantes();
           if(cloudEsts && cloudEsts.length){
             cloudEsts.forEach(ce => {
-              const idx = accounts.findIndex(a => String(a.documento) === String(ce.documento));
+              const idx = accounts.findIndex(a => normDocId(a.documento) === normDocId(ce.documento));
               if(idx >= 0){ accounts[idx] = Object.assign({}, accounts[idx], ce); }
               else { accounts.push(ce); }
             });
             saveAccounts('estudiante', accounts);
-            account = accounts.find(a => String(a.documento) === doc);
+            account = accounts.find(a => normDocId(a.documento) === doc);
           }
         }catch(e){
           console.warn('Error consultando estudiantes en cloud:', e);
@@ -2372,16 +2388,15 @@
     if(!account){
       return setFormMsg('login-est-msg','No hay ninguna cuenta con ese documento. Regístrate primero.',false);
     }
-    const passwordHash = await hashPassword(pin);
     if(passwordHash !== account.passwordHash){
       clearPinValue('login-est-pin');
       return setFormMsg('login-est-msg','Documento o clave incorrectos.',false);
     }
     state.user = { nombre: account.nombre, id: account.documento, curso: account.curso || '' };
 
-    // Sincronizar todos los trabajos y entregas inmediatamente para que el estudiante vea todo en este dispositivo
+    // Sincronizar todos los trabajos y entregas antes de entrar
     if(typeof syncFirestoreData === 'function'){
-      syncFirestoreData().catch(e => console.warn(e));
+      await syncFirestoreData().catch(e => console.warn(e));
     }
 
     goToGradeSelect('estudiante');
@@ -2430,16 +2445,21 @@
   async function manualSync(btnEl){
     const btn = btnEl || (typeof event !== 'undefined' && event && event.target);
     const origText = btn ? btn.textContent : '';
-    if(btn) btn.textContent = '🔄 Sincronizando…';
+    if(btn){ btn.disabled = true; btn.textContent = '🔄 Sincronizando…'; }
     try {
-      await syncFirestoreData();
+      const res = await syncFirestoreData(true);
       if(state.role === 'profesor') await renderTeacherList();
       else if(state.role === 'estudiante') await renderStudentList();
       else if(state.role === 'coordinador') await renderCoord();
-      if(btn) btn.textContent = '✅ ¡Sincronizado!';
-      setTimeout(() => { if(btn) btn.textContent = origText || '🔄 Sincronizar'; }, 2000);
+      if(res && res.ok){
+        const c = res.counts || {};
+        if(btn) btn.textContent = `✅ Sincronizado (${c.coordinadores || 0}C/${c.profesores || 0}P/${c.trabajos || 0}G)`;
+      } else {
+        if(btn) btn.textContent = '⚠️ Sin conexión nube';
+      }
+      setTimeout(() => { if(btn){ btn.textContent = origText || '🔄 Sincronizar'; btn.disabled = false; } }, 2800);
     } catch(e) {
-      if(btn) btn.textContent = origText || '🔄 Sincronizar';
+      if(btn){ btn.textContent = '⚠️ Error al sincronizar'; setTimeout(() => { btn.textContent = origText || '🔄 Sincronizar'; btn.disabled = false; }, 2500); }
     }
   }
 
@@ -3779,11 +3799,40 @@
     return hexOf(bits);
   }
 
+  async function refreshCoordLoginCloudInfo(){
+    const box = document.getElementById('coord-login-cloud-info');
+    if(!box) return;
+    box.style.display = 'block';
+    box.textContent = '☁️ Verificando cuentas guardadas en la nube…';
+    try{
+      const cdb = await getColegioDB();
+      if(!cdb || !cdb.getCoordinadores){
+        box.textContent = '⚠️ Conectando con la base de datos en la nube…';
+        return;
+      }
+      const cloudCoords = await cdb.getCoordinadores();
+      if(cloudCoords && cloudCoords.length){
+        const coords = getAccounts('coordinador') || [];
+        cloudCoords.forEach(cc => {
+          const idx = coords.findIndex(c => normDocId(c.cedula) === normDocId(cc.cedula));
+          if(idx >= 0) coords[idx] = Object.assign({}, coords[idx], cc);
+          else coords.push(cc);
+        });
+        saveAccounts('coordinador', coords);
+        box.textContent = `☁️ Nube conectada • ${cloudCoords.length} coordinador${cloudCoords.length === 1 ? '' : 'es'} registrado${cloudCoords.length === 1 ? '' : 's'}. Inicia con tu cédula y contraseña.`;
+      } else {
+        box.textContent = '☁️ Nube conectada • Aún no hay coordinadores registrados. Regístrate abajo.';
+      }
+    }catch(e){
+      box.textContent = '⚠️ No se pudo consultar la nube en este momento. Verifica tu internet.';
+    }
+  }
+
   async function registerCoordinador(){
-    const cedula = document.getElementById('reg-coord-cedula').value.trim();
+    const cedula = normDocId(document.getElementById('reg-coord-cedula').value);
     const nombres = document.getElementById('reg-coord-nombres').value.trim();
     const apellidos = document.getElementById('reg-coord-apellidos').value.trim();
-    const telefono = document.getElementById('reg-coord-telefono').value.trim();
+    const telefono = normDocId(document.getElementById('reg-coord-telefono').value);
     const email = document.getElementById('reg-coord-email').value.trim();
     const institucion = document.getElementById('reg-coord-institucion').value.trim();
     const pass = document.getElementById('reg-coord-pass').value;
@@ -3803,6 +3852,7 @@
     const btn = document.getElementById('reg-coord-btn');
     btn.disabled = true;
     try{
+      setFormMsg(msg, 'Verificando y guardando en la base de datos en la nube…', true);
       let salt, passwordHash;
       try{
         salt = newSalt();
@@ -3810,10 +3860,27 @@
       }catch(e){
         return setFormMsg(msg, 'Este navegador no permite crear la cuenta de forma segura. Prueba en Chrome, Edge o Firefox.', false);
       }
-      const existing = getAccounts('coordinador');
-      if(existing.some(c => c.cedula === cedula)){
-        return setFormMsg(msg, 'Ya existe una cuenta de coordinador con esa cédula. Inicia sesión en su lugar.', false);
+
+      const cdb = await getColegioDB();
+      let existing = getAccounts('coordinador');
+      if(cdb && cdb.getCoordinadores){
+        try{
+          const cloudCoords = await cdb.getCoordinadores();
+          if(cloudCoords && cloudCoords.length){
+            cloudCoords.forEach(cc => {
+              const idx = existing.findIndex(c => normDocId(c.cedula) === normDocId(cc.cedula));
+              if(idx >= 0) existing[idx] = Object.assign({}, existing[idx], cc);
+              else existing.push(cc);
+            });
+            saveAccounts('coordinador', existing);
+          }
+        }catch(e){}
       }
+
+      if(existing.some(c => normDocId(c.cedula) === cedula)){
+        return setFormMsg(msg, 'Ya existe una cuenta de coordinador con la cédula ' + cedula + '. Inicia sesión en su lugar.', false);
+      }
+
       const coordAccount = {
         cedula,
         nombres,
@@ -3826,22 +3893,26 @@
         passwordHash,
         fecha: new Date().toISOString()
       };
+
+      if(!cdb || !cdb.saveCoordinador){
+        return setFormMsg(msg, 'No hay conexión con la base de datos en la nube. Verifica tu conexión a internet e intenta de nuevo.', false);
+      }
+      try{
+        await cdb.saveCoordinador(coordAccount);
+        console.log('✅ Coordinador guardado en la nube Firestore:', cedula);
+      }catch(e){
+        console.warn('Error guardando coordinador en cloud:', e);
+        return setFormMsg(msg, 'Error al guardar en la base de datos en la nube. Verifica tu conexión e intenta nuevamente.', false);
+      }
+
       existing.push(coordAccount);
-      if(!saveAccounts('coordinador', existing)){
-        return setFormMsg(msg, 'No se pudo crear la cuenta localmente. Intenta de nuevo.', false);
-      }
-      const cdb = await getColegioDB();
-      if(cdb && cdb.saveCoordinador){
-        try{
-          await cdb.saveCoordinador(coordAccount);
-          console.log('✅ Coordinador sincronizado en la nube Firestore');
-        }catch(e){
-          console.warn('Error guardando coordinador en cloud:', e);
-        }
-      }
+      saveAccounts('coordinador', existing);
       document.getElementById('reg-coord-pass').value = '';
       document.getElementById('reg-coord-pass2').value = '';
       state.user = coordAccount;
+      if(typeof syncFirestoreData === 'function'){
+        await syncFirestoreData(true).catch(e => console.warn(e));
+      }
       await openCoord();
     }finally{
       btn.disabled = false;
@@ -3855,43 +3926,49 @@
       return setFormMsg(msg, 'Demasiados intentos. Espera ' + Math.ceil((coordLockUntil - now) / 1000) + ' segundos.', false);
     }
     const cedulaEl = document.getElementById('login-coord-cedula');
-    const rawCedula = cedulaEl ? cedulaEl.value.trim() : '';
+    const rawInput = cedulaEl ? cedulaEl.value.trim() : '';
+    const normCedula = normDocId(rawInput);
     const pass = document.getElementById('login-coord-pass').value;
 
-    if(!rawCedula){ return setFormMsg(msg, 'Ingresa tu número de cédula de coordinador.', false); }
+    if(!normCedula){ return setFormMsg(msg, 'Ingresa tu número de cédula de coordinador.', false); }
     if(!pass){ return setFormMsg(msg, 'Ingresa tu contraseña.', false); }
-
-    let coords = getAccounts('coordinador') || [];
-    let acc = coords.find(c => String(c.cedula).trim() === rawCedula || (c.email && c.email.toLowerCase() === rawCedula.toLowerCase()));
-
-    // Si aún no está en local, sincronizar desde la nube (Firestore)
-    if(!acc){
-      const cdb = await getColegioDB();
-      if(cdb && cdb.getCoordinadores){
-        try{
-          const cloudCoords = await cdb.getCoordinadores();
-          if(cloudCoords && cloudCoords.length){
-            cloudCoords.forEach(cc => {
-              const idx = coords.findIndex(c => String(c.cedula) === String(cc.cedula));
-              if(idx >= 0){ coords[idx] = Object.assign({}, coords[idx], cc); }
-              else { coords.push(cc); }
-            });
-            saveAccounts('coordinador', coords);
-            acc = coords.find(c => String(c.cedula).trim() === rawCedula || (c.email && c.email.toLowerCase() === rawCedula.toLowerCase()));
-          }
-        }catch(e){
-          console.warn('Error sincronizando coordinadores:', e);
-        }
-      }
-    }
 
     const btn = document.getElementById('login-coord-btn');
     if(btn) btn.disabled = true;
     try{
+      setFormMsg(msg, 'Verificando en la nube…', true);
+      let coords = getAccounts('coordinador') || [];
+      let acc = coords.find(c => normDocId(c.cedula) === normCedula || (c.email && c.email.toLowerCase() === rawInput.toLowerCase()));
+
       let valid = false;
       if(acc && acc.salt){
         try{ valid = (await strongHash(pass, acc.salt)) === acc.passwordHash; }catch(e){ valid = false; }
       }
+
+      // Si no está en local o la clave local no coincidió, consultar siempre en Firestore
+      if(!acc || !valid){
+        const cdb = await getColegioDB();
+        if(cdb && cdb.getCoordinadores){
+          try{
+            const cloudCoords = await cdb.getCoordinadores();
+            if(cloudCoords && cloudCoords.length){
+              cloudCoords.forEach(cc => {
+                const idx = coords.findIndex(c => normDocId(c.cedula) === normDocId(cc.cedula));
+                if(idx >= 0){ coords[idx] = Object.assign({}, coords[idx], cc); }
+                else { coords.push(cc); }
+              });
+              saveAccounts('coordinador', coords);
+              acc = coords.find(c => normDocId(c.cedula) === normCedula || (c.email && c.email.toLowerCase() === rawInput.toLowerCase()));
+              if(acc && acc.salt){
+                try{ valid = (await strongHash(pass, acc.salt)) === acc.passwordHash; }catch(e){ valid = false; }
+              }
+            }
+          }catch(e){
+            console.warn('Error sincronizando coordinadores:', e);
+          }
+        }
+      }
+
       if(!valid){
         coordFails++;
         if(coordFails >= 5){
@@ -3899,13 +3976,14 @@
           coordLockUntil = Date.now() + 30000;
           return setFormMsg(msg, 'Demasiados intentos fallidos. Espera 30 segundos.', false);
         }
-        return setFormMsg(msg, 'Cédula o contraseña incorrectos.', false);
+        return setFormMsg(msg, acc ? 'Contraseña incorrecta.' : 'No se encontró coordinador con esa cédula en la base de datos.', false);
       }
       coordFails = 0;
       document.getElementById('login-coord-pass').value = '';
+      setFormMsg(msg, '', true);
       state.user = acc;
       if(typeof syncFirestoreData === 'function'){
-        syncFirestoreData().catch(e => console.warn(e));
+        await syncFirestoreData(true).catch(e => console.warn(e));
       }
       await openCoord();
     }finally{
@@ -4008,7 +4086,7 @@
     try{
       await ready;
       const w = await idbRun('readonly', s => s.getAll());
-      works = (w || []).map(x => ({ id:x.id, profesorId:x.profesorId || '', profesorNombre:x.profesorNombre || '' }));
+      works = (w || []).map(x => ({ id:x.id, profesorId:x.profesorId || x.profesorCedula || '', profesorNombre:x.profesorNombre || '' }));
       const e = await idbRun('readonly', s => s.getAll(), ENTREGAS);
       ents = (e || []).map(x => ({ id:x.id, estudianteDoc:x.estudianteDoc }));
     }catch(err){}
@@ -4018,7 +4096,7 @@
   // Trabajos de un profesor: por cédula si el trabajo la tiene, y si no por nombre
   function worksOf(prof, works){
     const nom = cleanText(prof.nombre, 120).toLowerCase();
-    return works.filter(w => w.profesorId ? w.profesorId === prof.cedula : cleanText(w.profesorNombre, 120).toLowerCase() === nom);
+    return works.filter(w => w.profesorId ? normDocId(w.profesorId) === normDocId(prof.cedula) : cleanText(w.profesorNombre, 120).toLowerCase() === nom);
   }
 
   async function renderCoord(){
@@ -4163,150 +4241,160 @@
   }
 
   // ---------- Sincronización con Base de Datos Cloud (Firestore) ----------
-  async function syncFirestoreData(){
-    try{
-      const cdb = await getColegioDB();
-      if(!cdb){
-        console.warn('ColegioDB aún no disponible para sincronización');
-        return;
-      }
-
-      // Sincronizar coordinadores (bidireccional)
+  let activeSyncPromise = null;
+  async function syncFirestoreData(forceRefresh){
+    if(activeSyncPromise && !forceRefresh) return activeSyncPromise;
+    const run = (async () => {
+      const counts = { coordinadores: 0, profesores: 0, estudiantes: 0, trabajos: 0, entregas: 0 };
       try{
-        const cloudCoords = (await cdb.getCoordinadores()) || [];
-        const cloudMap = new Map(cloudCoords.map(c => [String(c.cedula), c]));
-        const localCoords = getAccounts('coordinador') || [];
-
-        // 1. Subir a Firestore cualquier coordinador registrado localmente que aún falte en la nube
-        for(const lc of localCoords){
-          if(lc && lc.cedula && !cloudMap.has(String(lc.cedula))){
-            try{
-              await cdb.saveCoordinador(lc);
-              console.log('✅ Coordinador local respaldado en Firestore:', lc.cedula);
-            }catch(err){ console.warn('Error subiendo coord:', err); }
-          }
+        const cdb = await getColegioDB();
+        if(!cdb){
+          console.warn('ColegioDB aún no disponible para sincronización');
+          return { ok: false, error: 'Sin conexión a Firestore', counts };
         }
 
-        // 2. Descargar coordinadores de la nube para tenerlos en este dispositivo
-        const localMap = new Map(localCoords.map(c => [String(c.cedula), c]));
-        cloudCoords.forEach(c => localMap.set(String(c.cedula), Object.assign({}, localMap.get(String(c.cedula)) || {}, c)));
-        saveAccounts('coordinador', Array.from(localMap.values()));
-      }catch(e){ console.warn('Sync coords:', e); }
+        // Sincronizar coordinadores (bidireccional)
+        try{
+          const cloudCoords = (await cdb.getCoordinadores()) || [];
+          const cloudMap = new Map(cloudCoords.map(c => [normDocId(c.cedula), c]));
+          const localCoords = getAccounts('coordinador') || [];
 
-      // Sincronizar profesores (bidireccional)
-      try{
-        const cloudProfs = (await cdb.getProfesores()) || [];
-        const cloudMap = new Map(cloudProfs.map(p => [String(p.cedula), p]));
-        const localProfs = getAccounts('profesor') || [];
-
-        // 1. Subir a Firestore cualquier profesor que aún no esté en la nube
-        for(const lp of localProfs){
-          if(lp && lp.cedula && !cloudMap.has(String(lp.cedula))){
-            try{
-              await cdb.saveProfesor(lp);
-              console.log('✅ Profesor local respaldado en Firestore:', lp.cedula);
-            }catch(err){ console.warn('Error subiendo prof:', err); }
-          }
-        }
-
-        // 2. Descargar profesores de la nube a este dispositivo
-        const localMap = new Map(localProfs.map(p => [String(p.cedula), p]));
-        cloudProfs.forEach(p => localMap.set(String(p.cedula), Object.assign({}, localMap.get(String(p.cedula)) || {}, p)));
-        saveAccounts('profesor', Array.from(localMap.values()));
-      }catch(e){ console.warn('Sync profs:', e); }
-
-      // Sincronizar estudiantes (bidireccional)
-      try{
-        const cloudEsts = (await cdb.getEstudiantes()) || [];
-        const cloudMap = new Map(cloudEsts.map(e => [String(e.documento), e]));
-        const localEsts = getAccounts('estudiante') || [];
-
-        // 1. Subir a Firestore cualquier estudiante registrado en este dispositivo
-        for(const le of localEsts){
-          if(le && le.documento && !cloudMap.has(String(le.documento))){
-            try{
-              await cdb.saveEstudiante(le);
-              console.log('✅ Estudiante local respaldado en Firestore:', le.documento);
-            }catch(err){ console.warn('Error subiendo est:', err); }
-          }
-        }
-
-        // 2. Descargar estudiantes de la nube a este dispositivo
-        const localMap = new Map(localEsts.map(e => [String(e.documento), e]));
-        cloudEsts.forEach(e => localMap.set(String(e.documento), Object.assign({}, localMap.get(String(e.documento)) || {}, e)));
-        saveAccounts('estudiante', Array.from(localMap.values()));
-      }catch(e){ console.warn('Sync ests:', e); }
-
-      // Sincronizar trabajos (bidireccional: nube <-> dispositivo local)
-      try{
-        const cloudWorks = (await cdb.getTrabajos()) || [];
-        const cloudMap = new Map(cloudWorks.map(w => [String(w.id), w]));
-        await ready;
-        const localWorks = (await idbRun('readonly', s => s.getAll())) || [];
-
-        // 1. Si en este dispositivo hay guías guardadas que aún no subieron a la nube, subirlas automáticamente
-        for(const lw of localWorks){
-          if(lw && lw.id && !cloudMap.has(String(lw.id))){
-            try{
-              await cdb.saveTrabajo(lw);
-              console.log('✅ Guía local respaldada en Firestore:', lw.titulo);
-            }catch(err){
-              console.warn('Error respaldando guía local en cloud:', err);
+          for(const lc of localCoords){
+            if(lc && lc.cedula && !cloudMap.has(normDocId(lc.cedula))){
+              try{
+                await cdb.saveCoordinador(lc);
+                console.log('✅ Coordinador local respaldado en Firestore:', lc.cedula);
+              }catch(err){ console.warn('Error subiendo coord:', err); }
             }
           }
-        }
 
-        // 2. Traer de la nube cualquier guía para que se vea en este dispositivo
-        const localMap = new Map(localWorks.map(w => [String(w.id), w]));
-        const toPut = [];
-        for(const cw of cloudWorks){
-          const loc = localMap.get(String(cw.id));
-          const cwGrado = Number(cw.grado) || 1;
-          if(!loc){
-            toPut.push(Object.assign({}, cw, { grado: cwGrado, fotos: cw.fotos || [], videos: cw.videos || [] }));
-          } else if(cw.editado && (!loc.editado || cw.editado > loc.editado)){
-            toPut.push(Object.assign({}, loc, cw, { grado: cwGrado, fotos: loc.fotos || [], videos: loc.videos || [] }));
+          const localMap = new Map(localCoords.map(c => [normDocId(c.cedula), c]));
+          cloudCoords.forEach(c => localMap.set(normDocId(c.cedula), Object.assign({}, localMap.get(normDocId(c.cedula)) || {}, c)));
+          const mergedCoords = Array.from(localMap.values());
+          saveAccounts('coordinador', mergedCoords);
+          counts.coordinadores = mergedCoords.length;
+        }catch(e){ console.warn('Sync coords:', e); }
+
+        // Sincronizar profesores (bidireccional)
+        try{
+          const cloudProfs = (await cdb.getProfesores()) || [];
+          const cloudMap = new Map(cloudProfs.map(p => [normDocId(p.cedula), p]));
+          const localProfs = getAccounts('profesor') || [];
+
+          for(const lp of localProfs){
+            if(lp && lp.cedula && !cloudMap.has(normDocId(lp.cedula))){
+              try{
+                await cdb.saveProfesor(lp);
+                console.log('✅ Profesor local respaldado en Firestore:', lp.cedula);
+              }catch(err){ console.warn('Error subiendo prof:', err); }
+            }
           }
-        }
-        if(toPut.length){
-          await idbRun('readwrite', s => { toPut.forEach(w => s.put(w)); return null; });
-        }
-      }catch(e){ console.warn('Sync works:', e); }
 
-      // Sincronizar entregas y calificaciones (bidireccional)
-      try{
-        const cloudEnts = (await cdb.getEntregas()) || [];
-        const cloudEntMap = new Map(cloudEnts.map(e => [String(e.id), e]));
-        await ready;
-        const localEnts = (await idbRun('readonly', s => s.getAll(), ENTREGAS)) || [];
+          const localMap = new Map(localProfs.map(p => [normDocId(p.cedula), p]));
+          cloudProfs.forEach(p => localMap.set(normDocId(p.cedula), Object.assign({}, localMap.get(normDocId(p.cedula)) || {}, p)));
+          const mergedProfs = Array.from(localMap.values());
+          saveAccounts('profesor', mergedProfs);
+          counts.profesores = mergedProfs.length;
+        }catch(e){ console.warn('Sync profs:', e); }
 
-        // Subir entregas locales que no estén en la nube
-        for(const le of localEnts){
-          if(le && le.id && !cloudEntMap.has(String(le.id))){
-            try{
-              await cdb.saveEntrega(le);
-            }catch(err){}
+        // Sincronizar estudiantes (bidireccional)
+        try{
+          const cloudEsts = (await cdb.getEstudiantes()) || [];
+          const cloudMap = new Map(cloudEsts.map(e => [normDocId(e.documento), e]));
+          const localEsts = getAccounts('estudiante') || [];
+
+          for(const le of localEsts){
+            if(le && le.documento && !cloudMap.has(normDocId(le.documento))){
+              try{
+                await cdb.saveEstudiante(le);
+                console.log('✅ Estudiante local respaldado en Firestore:', le.documento);
+              }catch(err){ console.warn('Error subiendo est:', err); }
+            }
           }
-        }
 
-        const localMap = new Map(localEnts.map(e => [String(e.id), e]));
-        const toPut = [];
-        for(const ce of cloudEnts){
-          const loc = localMap.get(String(ce.id));
-          if(!loc || ce.fechaCalificacion !== (loc && loc.fechaCalificacion) || ce.nota !== (loc && loc.nota) || ce.retroalimentacion !== (loc && loc.retroalimentacion)){
-            toPut.push(ce);
+          const localMap = new Map(localEsts.map(e => [normDocId(e.documento), e]));
+          cloudEsts.forEach(e => localMap.set(normDocId(e.documento), Object.assign({}, localMap.get(normDocId(e.documento)) || {}, e)));
+          const mergedEsts = Array.from(localMap.values());
+          saveAccounts('estudiante', mergedEsts);
+          counts.estudiantes = mergedEsts.length;
+        }catch(e){ console.warn('Sync ests:', e); }
+
+        // Sincronizar trabajos (bidireccional: nube <-> dispositivo local)
+        try{
+          const cloudWorks = (await cdb.getTrabajos()) || [];
+          const cloudMap = new Map(cloudWorks.map(w => [String(w.id), w]));
+          await ready;
+          const localWorks = (await idbRun('readonly', s => s.getAll())) || [];
+
+          for(const lw of localWorks){
+            if(lw && lw.id && !cloudMap.has(String(lw.id))){
+              try{
+                await cdb.saveTrabajo(lw);
+                console.log('✅ Guía local respaldada en Firestore:', lw.titulo);
+              }catch(err){
+                console.warn('Error respaldando guía local en cloud:', err);
+              }
+            }
           }
-        }
-        if(toPut.length){
-          await idbRun('readwrite', s => { toPut.forEach(e => s.put(e)); return null; }, ENTREGAS);
-        }
-      }catch(e){ console.warn('Sync entregas:', e); }
 
-      const badge = document.getElementById('cloud-status-badge');
-      if(badge) badge.style.display = 'inline-flex';
-    }catch(err){
-      console.warn('Sync error:', err);
-    }
+          const localMap = new Map(localWorks.map(w => [String(w.id), w]));
+          const toPut = [];
+          for(const cw of cloudWorks){
+            const loc = localMap.get(String(cw.id));
+            const cwGrado = Number(cw.grado) || 1;
+            if(!loc){
+              toPut.push(Object.assign({}, cw, { grado: cwGrado, fotos: cw.fotos || [], videos: cw.videos || [] }));
+            } else if(cw.editado && (!loc.editado || cw.editado > loc.editado)){
+              toPut.push(Object.assign({}, loc, cw, { grado: cwGrado, fotos: loc.fotos || [], videos: loc.videos || [] }));
+            }
+          }
+          if(toPut.length){
+            await idbRun('readwrite', s => { toPut.forEach(w => s.put(w)); return null; });
+          }
+          counts.trabajos = Math.max(cloudWorks.length, localWorks.length);
+        }catch(e){ console.warn('Sync works:', e); }
+
+        // Sincronizar entregas y calificaciones (bidireccional)
+        try{
+          const cloudEnts = (await cdb.getEntregas()) || [];
+          const cloudEntMap = new Map(cloudEnts.map(e => [String(e.id), e]));
+          await ready;
+          const localEnts = (await idbRun('readonly', s => s.getAll(), ENTREGAS)) || [];
+
+          for(const le of localEnts){
+            if(le && le.id && !cloudEntMap.has(String(le.id))){
+              try{
+                await cdb.saveEntrega(le);
+              }catch(err){}
+            }
+          }
+
+          const localMap = new Map(localEnts.map(e => [String(e.id), e]));
+          const toPut = [];
+          for(const ce of cloudEnts){
+            const loc = localMap.get(String(ce.id));
+            if(!loc || ce.fechaCalificacion !== (loc && loc.fechaCalificacion) || ce.nota !== (loc && loc.nota) || ce.retroalimentacion !== (loc && loc.retroalimentacion)){
+              toPut.push(ce);
+            }
+          }
+          if(toPut.length){
+            await idbRun('readwrite', s => { toPut.forEach(e => s.put(e)); return null; }, ENTREGAS);
+          }
+          counts.entregas = Math.max(cloudEnts.length, localEnts.length);
+        }catch(e){ console.warn('Sync entregas:', e); }
+
+        const badge = document.getElementById('cloud-status-badge');
+        if(badge) badge.style.display = 'inline-flex';
+        return { ok: true, counts };
+      }catch(err){
+        console.warn('Sync error:', err);
+        return { ok: false, error: err && err.message ? err.message : String(err), counts };
+      } finally {
+        if(activeSyncPromise === run) activeSyncPromise = null;
+      }
+    })();
+    activeSyncPromise = run;
+    return run;
   }
 
   // ---------- Inicialización ----------
